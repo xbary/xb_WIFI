@@ -30,7 +30,7 @@ uint32_t WIFI_DoLoop(void);
 bool WIFI_DoMessage(TMessageBoard *Am);
 
 extern void WIFI_HardDisconnect(void);
-extern TTaskDef WIFI_DefTask;
+extern TTaskDef XB_WIFI_DefTask;
 extern TWiFiStatus WiFiStatus;
 extern TInternetStatus WIFI_InternetStatus;
 extern uint8_t WIFI_mac[6];

@@ -33,17 +33,18 @@ TWiFiFunction WiFiFunction = wfHandle;
 TWiFiStatus WiFiStatus;
 TInternetStatus WIFI_InternetStatus;
 
-TTaskDef WIFI_DefTask = {1, &WIFI_Setup,&WIFI_DoLoop,&WIFI_DoMessage};
+TTaskDef XB_WIFI_DefTask = {1, &WIFI_Setup,&WIFI_DoLoop,&WIFI_DoMessage};
 
 IPAddress WIFI_dnsip1(8, 8, 8, 8);
 IPAddress WIFI_dnsip2(8, 8, 4, 4);
 uint8_t WIFI_mac[6];
 
+#ifdef XB_GUI
 TWindowClass *WIFI_winHandle0;
 TGADGETMenu *WIFI_menuhandle1;
 TGADGETInputDialog *WIFI_inputdialoghandle0_ssid;
 TGADGETInputDialog *WIFI_inputdialoghandle1_psw;
-
+#endif
 
 // Konfiguracja -----------------------------------------------------------------------------------------------------
 bool CFG_WIFI_AutoConnect = false;
@@ -335,16 +336,23 @@ void WIFI_Setup(void)
 	WiFi.macAddress(WIFI_mac);
 
 	{
-		bool lastshowloginfo = WIFI_DefTask.Task->ShowLogInfo;
-		WIFI_DefTask.Task->ShowLogInfo = false;
+		bool lastshowloginfo = XB_WIFI_DefTask.Task->ShowLogInfo;
+		XB_WIFI_DefTask.Task->ShowLogInfo = false;
 		WIFI_HardDisconnect();
-		WIFI_DefTask.Task->ShowLogInfo = lastshowloginfo;
+		XB_WIFI_DefTask.Task->ShowLogInfo = lastshowloginfo;
 	}
 	board.Log('.');
 	WiFiFunction = wfHandle;
 	board.Log(FSS(".OK"));
 
 	WIFI_LoadConfig();
+}
+void WIFI_GUI_Repaint()
+{
+#ifdef XB_GUI
+	if (WIFI_winHandle0 != NULL) WIFI_winHandle0->RepaintCounter++;
+#endif
+	
 }
 
 uint32_t WIFI_DoLoop(void)
@@ -368,7 +376,7 @@ uint32_t WIFI_DoLoop(void)
 				{
 						board.Log(FSS("Router ping error.\n"),true,true);
 						WIFI_HardDisconnect();
-						if (WIFI_winHandle0 != NULL) WIFI_winHandle0->RepaintDataCounter++;
+						WIFI_GUI_Repaint();
 				}
 
 				// Jeœli jeszcze nie sprawdzone czy jest internet dostepny
@@ -379,7 +387,7 @@ uint32_t WIFI_DoLoop(void)
 						board.Log(FSS("Internet ping error.\n"), true, true);
 						WiFiFunction = wfCheckInternetAvaliable;
 						WIFI_SetDisconnectInternet();
-						if (WIFI_winHandle0 != NULL) WIFI_winHandle0->RepaintDataCounter++;
+						WIFI_GUI_Repaint();
 					}
 				}
 				else
@@ -393,7 +401,7 @@ uint32_t WIFI_DoLoop(void)
 					{
 						WIFI_SetConnectInternet();
 					}
-					if (WIFI_winHandle0 != NULL) WIFI_winHandle0->RepaintDataCounter++;
+					WIFI_GUI_Repaint();
 
 				}
 #ifdef ESP32
@@ -415,7 +423,7 @@ uint32_t WIFI_DoLoop(void)
 			{
 				WIFI_SetDisconnectInternet();
 				WIFI_SetConnectWiFi();
-				if (WIFI_winHandle0 != NULL) WIFI_winHandle0->RepaintDataCounter++;
+				WIFI_GUI_Repaint();
 			}
 		}
 		else
@@ -428,7 +436,7 @@ uint32_t WIFI_DoLoop(void)
 					WIFI_HardDisconnect();
 							
 					WiFiFunction = wfDoFindtWiFi;
-					if (WIFI_winHandle0 != NULL) WIFI_winHandle0->RepaintDataCounter++;
+					WIFI_GUI_Repaint();
 					RESET_WAITMS(hhh1);
 				}
 				END_WAITMS(hhh1)
@@ -437,7 +445,7 @@ uint32_t WIFI_DoLoop(void)
 			{
 				WiFiFunction = wfDoFindtWiFi;
 
-				if (WIFI_winHandle0 != NULL) WIFI_winHandle0->RepaintDataCounter++;
+				WIFI_GUI_Repaint();
 				RESET_WAITMS(hhh1);
 			}
 
@@ -463,7 +471,7 @@ uint32_t WIFI_DoLoop(void)
 			else
 			{
 				WiFiFunction = wfDoWaitFindtWiFi;
-				if (WIFI_winHandle0 != NULL) WIFI_winHandle0->RepaintDataCounter++;
+				WIFI_GUI_Repaint();
 				board.Log(FSS("Scan networks."), true, true);
 
 			}
@@ -497,14 +505,14 @@ uint32_t WIFI_DoLoop(void)
 			{
 				board.Log(FSS("Scan network failed."), true, true);
 				WiFiFunction = wfDoFindtWiFi;
-				if (WIFI_winHandle0 != NULL) WIFI_winHandle0->RepaintDataCounter++;
+				WIFI_GUI_Repaint();
 			}
 			else if (n==0)
 			{
 				board.Log(FSS("OK"));
 				board.Log(FSS("No network found."), true, true);
 				WiFiFunction = wfDoFindtWiFi;
-				if (WIFI_winHandle0 != NULL) WIFI_winHandle0->RepaintDataCounter++;
+				WIFI_GUI_Repaint();
 			}
 			else
 			{
@@ -528,7 +536,7 @@ uint32_t WIFI_DoLoop(void)
 					{
 						board.Log(FSS(" <<< Connect"));
 						WiFiFunction = wfDoConnectWiFi;
-						if (WIFI_winHandle0 != NULL) WIFI_winHandle0->RepaintDataCounter++;
+						WIFI_GUI_Repaint();
 					}
 					
 				}
@@ -562,7 +570,7 @@ uint32_t WIFI_DoLoop(void)
 		WiFi.begin(CFG_WIFI_SSID.c_str(), CFG_WIFI_PSW.c_str());
 		
 		WiFiFunction = wfWaitConnectWiFi;
-		if (WIFI_winHandle0 != NULL) WIFI_winHandle0->RepaintDataCounter++;
+		WIFI_GUI_Repaint();
 		break;
 	}
 	case wfWaitConnectWiFi:
@@ -574,7 +582,7 @@ uint32_t WIFI_DoLoop(void)
 			board.Log(FSS("OK"));
 			WIFI_SetConnectWiFi();
 			WiFiFunction = wfHandle;
-			if (WIFI_winHandle0 != NULL) WIFI_winHandle0->RepaintDataCounter++;
+			WIFI_GUI_Repaint();
 		}
 		else
 		{
@@ -593,7 +601,7 @@ uint32_t WIFI_DoLoop(void)
 //				WIFI_SetDisconnectInternet();
 //				WIFI_SetDisconnectWiFi();
 				WiFiFunction = wfDoFindtWiFi;
-				if (WIFI_winHandle0 != NULL) WIFI_winHandle0->RepaintDataCounter++;
+				WIFI_GUI_Repaint();
 			}
 			END_WAITMS(hhh4)
 		}
@@ -622,7 +630,7 @@ uint32_t WIFI_DoLoop(void)
 				WIFI_SetDisconnectInternet();
 			}
 			WiFiFunction = wfHandle;
-			if (WIFI_winHandle0 != NULL) WIFI_winHandle0->RepaintDataCounter++;
+			WIFI_GUI_Repaint();
 		}
 		END_WAITMS(hhh3)
 		break;
@@ -659,15 +667,19 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 	}
 	case IM_WIFI_CONNECT:
 	{
-		if (WIFI_winHandle0 != NULL) WIFI_winHandle0->RepaintDataCounter++;
+		WIFI_GUI_Repaint();
 		PING_GATEWAY_IS = true;
 #ifdef ARDUINO_OTA
 		WIFI_OTA_Init();
 #endif
+		WIFI_GUI_Repaint();
 		break;
 	}
 	case IM_WIFI_DISCONNECT:
+	case IM_INTERNET_CONNECT:
+	case IM_INTERNET_DISCONNECT:
 	{
+		WIFI_GUI_Repaint();
 		break;
 	}
 	case IM_CONFIG_SAVE:
@@ -675,13 +687,14 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 		WIFI_SaveConfig();
 		return true;
 	}
+#ifdef XB_GUI		
 	case IM_MENU:
 	{
 		switch (Am->Data.MenuData.TypeMenuAction)
 		{
 		case tmaOPEN_MAINMENU:
 		{
-			WIFI_menuhandle1 = GUIGADGET_CreateMenu(&WIFI_DefTask, 1);
+			WIFI_menuhandle1 = GUIGADGET_CreateMenu(&XB_WIFI_DefTask, 1);
 			break;
 		}
 		case tmaGET_INIT_MENU:
@@ -736,7 +749,7 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 				}
 				EVENT_MENUCLICK(3)
 				{
-					WIFI_winHandle0 = GUI_WindowCreate(&WIFI_DefTask, 0);
+					WIFI_winHandle0 = GUI_WindowCreate(&XB_WIFI_DefTask, 0);
 				}
 				EVENT_MENUCLICK(4)
 				{
@@ -748,11 +761,11 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 				}
 				EVENT_MENUCLICK(6)
 				{
-					WIFI_inputdialoghandle0_ssid = GUIGADGET_CreateInputDialog(&WIFI_DefTask, 0);
+					WIFI_inputdialoghandle0_ssid = GUIGADGET_CreateInputDialog(&XB_WIFI_DefTask, 0);
 				}
 				EVENT_MENUCLICK(7)
 				{
-					WIFI_inputdialoghandle1_psw = GUIGADGET_CreateInputDialog(&WIFI_DefTask, 1);
+					WIFI_inputdialoghandle1_psw = GUIGADGET_CreateInputDialog(&XB_WIFI_DefTask, 1);
 				}
 
 			}
@@ -902,12 +915,13 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 			break;
 		}
 
+
 		default: break;
 		}
 		break;
 	}
+#endif
 	}
-
 	return false;
 }
 
