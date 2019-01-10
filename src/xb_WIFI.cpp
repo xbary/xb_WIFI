@@ -66,6 +66,42 @@ uint32_t CFG_WIFI_AdministratorGATEWAY = 0;
 
 Preferences WIFI_cfg;
 //-------------------------------------------------------------------------------------------------------------
+#if defined(wificlient_h) || defined(_WIFICLIENT_H_)
+
+/*
+Insert Into WiFiClient Class
+
+void abort();
+
+void WiFiClient::abort()
+{
+	if (_client)
+	_client->abort();
+	}
+*/
+
+void TCPClientDestroy(WiFiClient **Awificlient)
+{
+	if (Awificlient != NULL)
+	{
+		if (*Awificlient != NULL)
+		{
+			delay(50);
+			(*Awificlient)->flush();
+#ifdef ESP8266
+
+			delay(50);
+			(*Awificlient)->abort();
+#endif
+			delay(50);
+			delete((*Awificlient));
+			(*Awificlient) = NULL;
+			delay(50);
+		}
+	}
+}
+#endif
+
 void WIFI_DoAllTaskWifiDisconnect(void)
 {
 	board.SendMessageToAllTask(IM_WIFI_DISCONNECT, doBACKWARD);

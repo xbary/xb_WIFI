@@ -2,19 +2,12 @@
 #define _XB_WIFI_H
 
 #include <xb_board.h>
-
-#ifdef ESP8266
-#define ARDUINO_OTA
-#include <ArduinoOTA.h>
-#include <ESP8266WiFi.h>
-#include <ESP8266Ping.h>
 #include <WiFiClient.h>
-#endif
-
 
 typedef enum { wsDisconnect, wsConnect } TWiFiStatus;
 typedef enum { isDisconnect, isConnect } TInternetStatus;
 
+void TCPClientDestroy(WiFiClient **Awificlient);
 void WIFI_DoAllTaskWifiDisconnect(void);
 void WIFI_DoAllTaskInternetDisconnect(void);
 void WIFI_DoAllTaskInternetConnect(void);

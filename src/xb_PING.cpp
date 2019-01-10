@@ -18,7 +18,7 @@ uint32_t PING_GATEWAY_addr = IPAddress(192, 168, 1, 1);
 
 void XB_PING_Setup()
 {
-	board.Log(FSS("Init"), true, true,tlInfo, &XB_PING_DefTask);
+	board.Log(FSS("Init"), true, true,tlInfo);
 
 	board.Log(FSS("...OK"));
 	
