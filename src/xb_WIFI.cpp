@@ -44,6 +44,9 @@ TWindowClass *WIFI_winHandle0;
 TGADGETMenu *WIFI_menuhandle1;
 TGADGETInputDialog *WIFI_inputdialoghandle0_ssid;
 TGADGETInputDialog *WIFI_inputdialoghandle1_psw;
+TGADGETInputDialog *WIFI_inputdialoghandle2_sta_ip;
+TGADGETInputDialog *WIFI_inputdialoghandle3_mask_ip;
+TGADGETInputDialog *WIFI_inputdialoghandle4_gateway_ip;
 #endif
 
 // Konfiguracja -----------------------------------------------------------------------------------------------------
@@ -736,7 +739,7 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 		case tmaGET_INIT_MENU:
 		{
 			BEGIN_MENUINIT(1)
-				DEF_MENUINIT(8, 0, 40);
+				DEF_MENUINIT(11, 0, 40);
 			END_MENUINIT()
 			return true;
 		}
@@ -757,6 +760,9 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 				DEF_MENUITEMNAME(5, String(FSS("Save Config")));
 				DEF_MENUITEMNAME(6, "Set SSID ["+ CFG_WIFI_SSID+"]");
 				DEF_MENUITEMNAME(7, String(FSS("Set PASSWORD")));
+				DEF_MENUITEMNAME(8,  "STA Set IP      ("+ IPAddress(CFG_WIFI_StaticIP).toString() + ")");
+				DEF_MENUITEMNAME(9,  "STA Set Mask    (" + IPAddress(CFG_WIFI_MASK).toString() + ")");
+				DEF_MENUITEMNAME(10, "STA Set GateWay (" + IPAddress(CFG_WIFI_GATEWAY).toString() + ")");
 			}
 			END_MENUITEMNAME()
 			return true;
@@ -803,6 +809,18 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 				{
 					WIFI_inputdialoghandle1_psw = GUIGADGET_CreateInputDialog(&XB_WIFI_DefTask, 1);
 				}
+				EVENT_MENUCLICK(8)
+				{
+					WIFI_inputdialoghandle2_sta_ip = GUIGADGET_CreateInputDialog(&XB_WIFI_DefTask, 2);
+				}
+				EVENT_MENUCLICK(9)
+				{
+					WIFI_inputdialoghandle3_mask_ip = GUIGADGET_CreateInputDialog(&XB_WIFI_DefTask, 3);
+				}
+				EVENT_MENUCLICK(10)
+				{
+					WIFI_inputdialoghandle4_gateway_ip = GUIGADGET_CreateInputDialog(&XB_WIFI_DefTask, 4);
+				}
 
 			}
 			END_MENUCLICK()
@@ -823,18 +841,38 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 			BEGIN_INPUTDIALOGINIT(1)
 				DEF_INPUTDIALOGINIT(tivDynArrayChar1, 16, &CFG_WIFI_PSW)
 			END_INPUTDIALOGINIT()
+
+			BEGIN_INPUTDIALOGINIT(2)
+				DEF_INPUTDIALOGINIT(tivIP, 15, &CFG_WIFI_StaticIP)
+			END_INPUTDIALOGINIT()
+
+			BEGIN_INPUTDIALOGINIT(3)
+				DEF_INPUTDIALOGINIT(tivIP, 15, &CFG_WIFI_MASK)
+			END_INPUTDIALOGINIT()
+				
+			BEGIN_INPUTDIALOGINIT(4)
+				DEF_INPUTDIALOGINIT(tivIP, 15, &CFG_WIFI_GATEWAY)
+			END_INPUTDIALOGINIT()
+
+
 				return true;
 		}
 		case ida_GET_CAPTION_STRING:
 		{
 			DEF_INPUTDIALOGCAPTION(0, FSS("Edit WIFI SSID"));
 			DEF_INPUTDIALOGCAPTION(1, FSS("Edit WIFI PASSWORD"));
+			DEF_INPUTDIALOGCAPTION(2, FSS("Edit STA IP"));
+			DEF_INPUTDIALOGCAPTION(3, FSS("Edit MASK IP"));
+			DEF_INPUTDIALOGCAPTION(4, FSS("Edit GATEWAY IP"));
 			return true;
 		}
 		case ida_GET_DESCRIPTION_STRING:
 		{
 			DEF_INPUTDIALOGDESCRIPTION(0, FSS("Please input WIFI SSID: "));
 			DEF_INPUTDIALOGDESCRIPTION(1, FSS("Please input WIFI PASSWORD: "));
+			DEF_INPUTDIALOGDESCRIPTION(2, FSS("Please input IPv4: "));
+			DEF_INPUTDIALOGDESCRIPTION(3, FSS("Please input IPv4: "));
+			DEF_INPUTDIALOGDESCRIPTION(4, FSS("Please input IPv4: "));
 			return true;
 		}
 		default: return false;
