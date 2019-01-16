@@ -413,7 +413,7 @@ uint32_t WIFI_DoLoop(void)
 
 				if (PING_GATEWAY_IS==false)
 				{
-						board.Log(FSS("Router ping error.\n"),true,true);
+						board.Log(FSS("Router ping error."),true,true);
 						WIFI_HardDisconnect();
 						WIFI_GUI_Repaint();
 				}
@@ -423,7 +423,7 @@ uint32_t WIFI_DoLoop(void)
 				{
 					if (!PING_8888_IS)
 					{
-						board.Log(FSS("Internet ping error.\n"), true, true);
+						board.Log(FSS("Internet ping error."), true, true);
 						WiFiFunction = wfCheckInternetAvaliable;
 						WIFI_SetDisconnectInternet();
 						WIFI_GUI_Repaint();
