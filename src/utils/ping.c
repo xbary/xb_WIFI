@@ -105,6 +105,8 @@
 uint8_t CurrentIDPING=0;
 static sys_thread_t pingtaskhandle;
 
+bool docheckping = false;
+
 /* ping variables */
 static u16_t ping_seq_num;
 static u32_t ping_time;
@@ -232,31 +234,37 @@ static void IRAM_ATTR ping_thread(void *arg)
 
 	while (1) 
 	{
-		ip4_addr_t ipaddr;
-		bool pingok = false;
+		if (docheckping)
+		{
+			
+		
+			ip4_addr_t ipaddr;
+			bool pingok = false;
 
-		esp_ping_get_target(CurrentIDPING, PING_TARGET_IP_ADDRESS, &ipaddr.addr, sizeof(uint32_t));
-		esp_ping_set_target(CurrentIDPING, PING_TARGET_IS, &pingok, sizeof(bool));
+			esp_ping_get_target(CurrentIDPING, PING_TARGET_IP_ADDRESS, &ipaddr.addr, sizeof(uint32_t));
+			esp_ping_set_target(CurrentIDPING, PING_TARGET_IS, &pingok, sizeof(bool));
 
 
-		ip_addr_copy_from_ip4(ping_target, ipaddr);
+			ip_addr_copy_from_ip4(ping_target, ipaddr);
 
-		if (ping_send(s, &ping_target) == ERR_OK) {
-			LWIP_DEBUGF(PING_DEBUG, ("ping: send "));
-			ip_addr_debug_print(PING_DEBUG, &ping_target);
-			LWIP_DEBUGF(PING_DEBUG, ("\n"));
+			if (ping_send(s, &ping_target) == ERR_OK) {
+				LWIP_DEBUGF(PING_DEBUG, ("ping: send "));
+				ip_addr_debug_print(PING_DEBUG, &ping_target);
+				LWIP_DEBUGF(PING_DEBUG, ("\n"));
 
-			ping_time = sys_now();
-			ping_recv(s);
-		}
-		else {
-			LWIP_DEBUGF(PING_DEBUG, ("ping: send "));
-			ip_addr_debug_print(PING_DEBUG, &ping_target);
-			LWIP_DEBUGF(PING_DEBUG, (" - error\n"));
+				ping_time = sys_now();
+				ping_recv(s);
+			}
+			else {
+				LWIP_DEBUGF(PING_DEBUG, ("ping: send "));
+				ip_addr_debug_print(PING_DEBUG, &ping_target);
+				LWIP_DEBUGF(PING_DEBUG, (" - error\n"));
+			}
+			
+
+			CurrentIDPING++; if (CurrentIDPING >= PING_COUNT) CurrentIDPING = 0;
 		}
 		sys_msleep(PING_DELAY);
-
-		CurrentIDPING++; if (CurrentIDPING >= PING_COUNT) CurrentIDPING = 0;
 	}
 }
 

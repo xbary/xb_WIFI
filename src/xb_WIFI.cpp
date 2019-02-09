@@ -684,6 +684,19 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 {
 	switch (Am->IDMessage)
 	{
+	case IM_FREEPTR:
+	{
+#ifdef XB_GUI
+		if (Am->Data.FreePTR == WIFI_winHandle0) WIFI_winHandle0 = NULL;
+		if (Am->Data.FreePTR == WIFI_menuhandle1) WIFI_menuhandle1 = NULL;
+		if (Am->Data.FreePTR == WIFI_inputdialoghandle0_ssid) WIFI_inputdialoghandle0_ssid = NULL;
+		if (Am->Data.FreePTR == WIFI_inputdialoghandle1_psw) WIFI_inputdialoghandle1_psw = NULL;
+		if (Am->Data.FreePTR == WIFI_inputdialoghandle2_sta_ip) WIFI_inputdialoghandle2_sta_ip = NULL;
+		if (Am->Data.FreePTR == WIFI_inputdialoghandle3_mask_ip) WIFI_inputdialoghandle3_mask_ip = NULL;
+		if (Am->Data.FreePTR == WIFI_inputdialoghandle4_gateway_ip) WIFI_inputdialoghandle4_gateway_ip = NULL;
+#endif
+		return true;
+	}
 	case IM_GET_TASKNAME_STRING:
 		{
 			*(Am->Data.PointerString) = FSS("WIFI");

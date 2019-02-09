@@ -27,6 +27,7 @@ void XB_PING_Setup()
 
 uint32_t XB_PING_DoLoop()
 {
+	docheckping = true;
 	switch (PING_FunctionStep)
 	{
 	case pfsIDLE:
@@ -74,11 +75,12 @@ uint32_t XB_PING_DoLoop()
 			ping_1_errorcount = 0;
 			PING_GATEWAY_IS = true;
 		}
-
+		//docheckping = false;
 		return 1000;
 	}
 	default: PING_FunctionStep = pfsIDLE; break;
 	}
+	//docheckping = false;
 	return 0;
 }
 
