@@ -49,6 +49,7 @@ extern "C" {
 	void ping_send_now(void);
 #endif /* !PING_USE_SOCKETS */
 	extern bool docheckping;
+	extern uint32_t statusdoping;
 
 #ifdef __cplusplus
 }

@@ -50,12 +50,11 @@ TGADGETInputDialog *WIFI_inputdialoghandle4_gateway_ip;
 bool CFG_WIFI_AutoConnect = false;
 bool CFG_WIFI_DEBUG = true;
 
-String CFG_WIFI_SSID = WIFI_SSID;
-String CFG_WIFI_PSW = WIFI_PASSWORD;
-
-uint32_t CFG_WIFI_StaticIP = 0;
-uint32_t CFG_WIFI_MASK = 0;
-uint32_t CFG_WIFI_GATEWAY = 0;
+String CFG_WIFI_SSID = DEFAULT_WIFI_SSID;
+String CFG_WIFI_PSW = DEFAULT_WIFI_PASSWORD;
+uint32_t CFG_WIFI_StaticIP = IPAddress().fromString(DEFAULT_WIFI_STATICIP);
+uint32_t CFG_WIFI_MASK = IPAddress().fromString(DEFAULT_WIFI_MASK);
+uint32_t CFG_WIFI_GATEWAY = IPAddress().fromString(DEFAULT_WIFI_GATEWAY);
 
 
 String CFG_WIFI_AdministratorSSID;
@@ -184,10 +183,10 @@ void WIFI_DoAllTaskInternetDisconnect(void)
 		bool result = true;
 		IPAddress ip;
 
-		CFG_WIFI_SSID = WIFI_SSID;
-		CFG_WIFI_PSW = WIFI_PASSWORD;
+		CFG_WIFI_SSID = DEFAULT_WIFI_SSID;
+		CFG_WIFI_PSW = DEFAULT_WIFI_PASSWORD;
 
-		if (ip.fromString(WIFI_STATICIP))
+		if (ip.fromString(DEFAULT_WIFI_STATICIP))
 		{
 			CFG_WIFI_StaticIP = ip;
 
@@ -197,7 +196,7 @@ void WIFI_DoAllTaskInternetDisconnect(void)
 			result = false;
 		}
 	
-		if (ip.fromString(WIFI_MASK))
+		if (ip.fromString(DEFAULT_WIFI_MASK))
 		{
 			CFG_WIFI_MASK = ip;
 
@@ -207,7 +206,7 @@ void WIFI_DoAllTaskInternetDisconnect(void)
 			result = false;
 		}
 
-		if (ip.fromString(WIFI_GATEWAY))
+		if (ip.fromString(DEFAULT_WIFI_GATEWAY))
 		{
 			CFG_WIFI_GATEWAY = ip;
 
@@ -222,7 +221,7 @@ void WIFI_DoAllTaskInternetDisconnect(void)
 		CFG_WIFI_AdministratorSSID = "xbary-wm";
 		CFG_WIFI_AdministratorPSW = "0987654321";
 
-		if (ip.fromString(WIFI_ADMINISTRATORSTATICIP))
+		if (ip.fromString(DEFAULT_WIFI_ADMINISTRATORSTATICIP))
 		{
 			CFG_WIFI_AdministratorStaticIP = ip;
 
@@ -387,6 +386,10 @@ void WIFI_Setup(void)
 	board.Log(FSS(".OK"));
 
 	WIFI_LoadConfig();
+	
+	board.AddTask(&XB_PING_DefTask);
+	
+	
 }
 void WIFI_GUI_Repaint()
 {

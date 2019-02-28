@@ -106,6 +106,7 @@ uint8_t CurrentIDPING=0;
 static sys_thread_t pingtaskhandle;
 
 bool docheckping = false;
+uint32_t statusdoping;
 
 /* ping variables */
 static u16_t ping_seq_num;
@@ -170,8 +171,6 @@ static void IRAM_ATTR ping_recv(int s)
 	struct ip_hdr *iphdr;
 	struct icmp_echo_hdr *iecho;
 	int fromlen = sizeof(from);
-	
-
 
 	while ((len = lwip_recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr*)&from, (socklen_t*)&fromlen)) > 0) {
 		if (len >= (int)(sizeof(struct ip_hdr) + sizeof(struct icmp_echo_hdr))) {
@@ -193,6 +192,7 @@ static void IRAM_ATTR ping_recv(int s)
 					esp_ping_result(CurrentIDPING,(ICMPH_TYPE(iecho) == ICMP_ER), len, (sys_now() - ping_time));
 					bool pingok = true;
 					esp_ping_set_target(CurrentIDPING, PING_TARGET_IS, &pingok, sizeof(bool));
+					statusdoping = 0;
 					return;
 				}
 				else {
@@ -208,7 +208,9 @@ static void IRAM_ATTR ping_recv(int s)
 	}
 
 	esp_ping_result(CurrentIDPING,0, len, (sys_now() - ping_time));
+	statusdoping = 0;
 }
+
 
 static void IRAM_ATTR ping_thread(void *arg)
 {
@@ -236,7 +238,7 @@ static void IRAM_ATTR ping_thread(void *arg)
 	{
 		if (docheckping)
 		{
-			
+			statusdoping++;
 		
 			ip4_addr_t ipaddr;
 			bool pingok = false;
