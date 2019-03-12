@@ -105,6 +105,7 @@
 uint8_t CurrentIDPING=0;
 static sys_thread_t pingtaskhandle;
 
+bool dofreeping = false;
 bool docheckping = false;
 uint32_t statusdoping;
 
@@ -133,22 +134,23 @@ static void IRAM_ATTR ping_prepare_echo(struct icmp_echo_hdr *iecho, u16_t len)
 
 static err_t IRAM_ATTR ping_send(int s, ip_addr_t *addr)
 {
-	int err;
-	struct icmp_echo_hdr *iecho;
-	struct sockaddr_in to;
+	int err=0;
+	struct icmp_echo_hdr *iecho=NULL;
+	struct sockaddr_in to; memset(&to, 0, sizeof(struct sockaddr_in));
 	size_t ping_size = sizeof(struct icmp_echo_hdr) + PING_DATA_SIZE;
-	uint8_t buf[sizeof(struct icmp_echo_hdr) + PING_DATA_SIZE];
-	memset(buf, 0, sizeof(struct icmp_echo_hdr) + PING_DATA_SIZE);
-	iecho = buf;
+
+	//uint8_t buf[sizeof(struct icmp_echo_hdr) + PING_DATA_SIZE];
+	//memset(buf, 0, sizeof(struct icmp_echo_hdr) + PING_DATA_SIZE);
+	//iecho = buf;
 
 	LWIP_ASSERT("ping_size is too big", ping_size <= 0xffff);
 	LWIP_ASSERT("ping: expect IPv4 address", !IP_IS_V6(addr));
 
 
-	//iecho = (struct icmp_echo_hdr *)mem_malloc((mem_size_t)ping_size);
-	//if (!iecho) {
-//		return ERR_MEM;
-//	}
+	iecho = (struct icmp_echo_hdr *)mem_malloc((mem_size_t)ping_size);
+	if (!iecho) {
+		return ERR_MEM;
+	}
 
 	ping_prepare_echo(iecho, (u16_t)ping_size);
 
@@ -158,7 +160,7 @@ static err_t IRAM_ATTR ping_send(int s, ip_addr_t *addr)
 
 	err = lwip_sendto(s, iecho, ping_size, 0, (struct sockaddr*)&to, sizeof(to));
 
-	//mem_free(iecho);
+	mem_free(iecho);
 
 	return (err ? ERR_OK : ERR_VAL);
 }
@@ -249,7 +251,8 @@ static void IRAM_ATTR ping_thread(void *arg)
 
 			ip_addr_copy_from_ip4(ping_target, ipaddr);
 
-			if (ping_send(s, &ping_target) == ERR_OK) {
+			if (ping_send(s, &ping_target) == ERR_OK)
+			{
 				LWIP_DEBUGF(PING_DEBUG, ("ping: send "));
 				ip_addr_debug_print(PING_DEBUG, &ping_target);
 				LWIP_DEBUGF(PING_DEBUG, ("\n"));
@@ -257,7 +260,8 @@ static void IRAM_ATTR ping_thread(void *arg)
 				ping_time = sys_now();
 				ping_recv(s);
 			}
-			else {
+			else
+			{
 				LWIP_DEBUGF(PING_DEBUG, ("ping: send "));
 				ip_addr_debug_print(PING_DEBUG, &ping_target);
 				LWIP_DEBUGF(PING_DEBUG, (" - error\n"));
@@ -265,26 +269,27 @@ static void IRAM_ATTR ping_thread(void *arg)
 			
 
 			CurrentIDPING++; if (CurrentIDPING >= PING_COUNT) CurrentIDPING = 0;
+
+			sys_msleep(PING_DELAY);
 		}
-		sys_msleep(PING_DELAY);
+		else
+		{
+			sys_msleep(1000);		
+		}
 	}
 }
 
 void ping_init(void)
 {
-	if (pingtaskhandle != NULL)
-	{
-		ping_deinit();
-	}
 	CurrentIDPING = 0;
-	pingtaskhandle=sys_thread_new("ping_thread", ping_thread, NULL, DEFAULT_THREAD_STACKSIZE, DEFAULT_THREAD_PRIO);
+	if (pingtaskhandle == NULL)
+	{
+		pingtaskhandle = sys_thread_new("ping_thread", ping_thread, NULL, DEFAULT_THREAD_STACKSIZE, DEFAULT_THREAD_PRIO);
+	}
+	docheckping = true;
 }
 
 void ping_deinit(void)
 {
-	if (pingtaskhandle != NULL)
-	{
-		vTaskDelete(pingtaskhandle);
-		pingtaskhandle = NULL;
-	}
+
 }

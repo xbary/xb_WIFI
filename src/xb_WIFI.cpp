@@ -1,6 +1,7 @@
 #include <xb_board.h>
 #include <xb_WIFI.h>
 #include <xb_PING.h>
+#include <utils/ping.h>
 #include <xb_GUI.h>
 #include <xb_GUI_Gadget.h>
 #include <xb_PREFERENCES.h>
@@ -50,11 +51,30 @@ TGADGETInputDialog *WIFI_inputdialoghandle4_gateway_ip;
 bool CFG_WIFI_AutoConnect = false;
 bool CFG_WIFI_DEBUG = true;
 
+#ifndef DEFAULT_WIFI_SSID
+#define DEFAULT_WIFI_SSID ""
+#endif
 String CFG_WIFI_SSID = DEFAULT_WIFI_SSID;
+
+#ifndef DEFAULT_WIFI_PASSWORD
+#define DEFAULT_WIFI_PASSWORD ""
+#endif
 String CFG_WIFI_PSW = DEFAULT_WIFI_PASSWORD;
-uint32_t CFG_WIFI_StaticIP = IPAddress().fromString(DEFAULT_WIFI_STATICIP);
-uint32_t CFG_WIFI_MASK = IPAddress().fromString(DEFAULT_WIFI_MASK);
-uint32_t CFG_WIFI_GATEWAY = IPAddress().fromString(DEFAULT_WIFI_GATEWAY);
+#ifndef DEFAULT_WIFI_STATICIP
+#define DEFAULT_WIFI_STATICIP "0.0.0.0"
+#endif
+String CFG_WIFI_StaticIP = DEFAULT_WIFI_STATICIP;
+uint32_t CFG_WIFI_StaticIP_IP;
+#ifndef DEFAULT_WIFI_MASK
+#define DEFAULT_WIFI_MASK "0.0.0.0"
+#endif
+String CFG_WIFI_MASK = DEFAULT_WIFI_MASK;
+uint32_t CFG_WIFI_MASK_IP;
+#ifndef DEFAULT_WIFI_GATEWAY
+#define DEFAULT_WIFI_GATEWAY "0.0.0.0"
+#endif
+String CFG_WIFI_GATEWAY = DEFAULT_WIFI_GATEWAY;
+uint32_t CFG_WIFI_GATEWAY_IP;
 
 
 String CFG_WIFI_AdministratorSSID;
@@ -100,22 +120,34 @@ uint32_t CFG_WIFI_AdministratorGATEWAY = 0;
 
 void WIFI_DoAllTaskWifiDisconnect(void)
 {
-	board.SendMessageToAllTask(IM_WIFI_DISCONNECT, doBACKWARD);
+	TMessageBoard mb; xb_memoryfill(&mb, sizeof(TMessageBoard), 0);
+	mb.IDMessage = IM_WIFI_DISCONNECT;
+
+	board.DoMessageOnAllTask(&mb, true, doBACKWARD); 
 }
 
 void WIFI_DoAllTaskInternetDisconnect(void)
 {
-	board.SendMessageToAllTask(IM_INTERNET_DISCONNECT, doBACKWARD);
+	TMessageBoard mb; xb_memoryfill(&mb, sizeof(TMessageBoard), 0);
+	mb.IDMessage = IM_INTERNET_DISCONNECT;
+
+	board.DoMessageOnAllTask(&mb,true,doBACKWARD); 
 }
 
 	void WIFI_DoAllTaskInternetConnect(void)
 	{
-		board.SendMessageToAllTask(IM_INTERNET_CONNECT, doFORWARD);
+		TMessageBoard mb; xb_memoryfill(&mb, sizeof(TMessageBoard), 0);
+		mb.IDMessage = IM_INTERNET_CONNECT;
+
+		board.DoMessageOnAllTask(&mb, true, doFORWARD); 
 	}
 
 	void WIFI_DoAllTaskWiFiConnect(void)
 	{
-		board.SendMessageToAllTask(IM_WIFI_CONNECT, doFORWARD);
+		TMessageBoard mb; xb_memoryfill(&mb, sizeof(TMessageBoard), 0);
+		mb.IDMessage = IM_WIFI_CONNECT;
+
+		board.DoMessageOnAllTask(&mb, true, doFORWARD); 
 	}
 
 	void WIFI_SetConnectWiFi(void)
@@ -144,22 +176,31 @@ void WIFI_DoAllTaskInternetDisconnect(void)
 
 	void WIFI_HardDisconnect(void)
 	{
+		int i = 0;
+		while (statusdoping > 0)
+		{
+			board.Log('.');
+			delay(250);
+			i++;if (i > 4)break;
+		}
+		docheckping = false;
+		
 		WIFI_SetDisconnectInternet();
 		WIFI_SetDisconnectWiFi();
-
+		WiFi.scanDelete();
+		delay(100);
+		
 		if (WiFi.status() == WL_CONNECTED)
 		{
 			board.Log(FSS("Disconnecting WIFI."), true, true);
+			board.Log('.');
+			WiFi.disconnect(true);
+			delay(100);
 		}
 		else
 		{
 			board.Log(FSS("Reseting WIFI."), true, true);
 		}
-		WiFi.scanDelete();
-		delay(100);
-		board.Log('.');
-		WiFi.disconnect(true);
-		delay(100);
 		board.Log('.');
 		WiFi.mode(WIFI_OFF);
 		delay(100);
@@ -177,7 +218,7 @@ void WIFI_DoAllTaskInternetDisconnect(void)
 		WiFiFunction = wfHandle;
 		board.Log(FSS("OK"));
 	}
-
+/*
 	bool WIFI_SetDefaultConfig(void)
 	{
 		bool result = true;
@@ -235,7 +276,7 @@ void WIFI_DoAllTaskInternetDisconnect(void)
 
 		return result;
 	}
-
+*/
 	bool WIFI_CheckDisconnectWiFi(void)
 	{
 		if ((WiFi.status() != WL_CONNECTED))
@@ -269,7 +310,7 @@ void WIFI_DoAllTaskInternetDisconnect(void)
 		board.Log('.');
 		#if !defined(_VMICRO_INTELLISENSE)
 		ArduinoOTA.onStart([](void) {
-			board.SendMessageOTAUpdateStarted();
+			board.SendMessage_OTAUpdateStarted();
 			String type;
 			if (ArduinoOTA.getCommand() == U_FLASH)
 				type = "sketch";
@@ -321,9 +362,9 @@ bool WIFI_LoadConfig()
 		CFG_WIFI_AutoConnect = PREFERENCES_GetBool("AUTOCONNECT", CFG_WIFI_AutoConnect); WIFI_PutDot_Debug();
 		CFG_WIFI_SSID = PREFERENCES_GetString("SSID", CFG_WIFI_SSID); WIFI_PutDot_Debug();
 		CFG_WIFI_PSW = PREFERENCES_GetString("PSW", CFG_WIFI_PSW); WIFI_PutDot_Debug();
-		CFG_WIFI_StaticIP = PREFERENCES_GetUINT32("StaticIP", CFG_WIFI_StaticIP); WIFI_PutDot_Debug();
-		CFG_WIFI_MASK = PREFERENCES_GetUINT32("Mask", CFG_WIFI_MASK); WIFI_PutDot_Debug();
-		CFG_WIFI_GATEWAY = PREFERENCES_GetUINT32("Gateway", CFG_WIFI_GATEWAY); WIFI_PutDot_Debug();
+		CFG_WIFI_StaticIP = PREFERENCES_GetString("StaticIP", CFG_WIFI_StaticIP); WIFI_PutDot_Debug();
+		CFG_WIFI_MASK = PREFERENCES_GetString("Mask", CFG_WIFI_MASK); WIFI_PutDot_Debug();
+		CFG_WIFI_GATEWAY = PREFERENCES_GetString("Gateway", CFG_WIFI_GATEWAY); WIFI_PutDot_Debug();
 
 		CFG_WIFI_AdministratorSSID = PREFERENCES_GetString("ASSID", CFG_WIFI_AdministratorSSID); WIFI_PutDot_Debug();
 		CFG_WIFI_AdministratorPSW = PREFERENCES_GetString("APSW", CFG_WIFI_AdministratorPSW); WIFI_PutDot_Debug();
@@ -347,9 +388,9 @@ bool WIFI_SaveConfig()
 		PREFERENCES_PutBool("DEBUG", CFG_WIFI_DEBUG); WIFI_PutDot_Debug();
 		PREFERENCES_PutString("SSID", CFG_WIFI_SSID); WIFI_PutDot_Debug(); 
 		PREFERENCES_PutString("PSW", CFG_WIFI_PSW); WIFI_PutDot_Debug(); 
-		PREFERENCES_PutUINT32("StaticIP", CFG_WIFI_StaticIP); WIFI_PutDot_Debug();
-		PREFERENCES_PutUINT32("Mask", CFG_WIFI_MASK); WIFI_PutDot_Debug();
-		PREFERENCES_PutUINT32("Gateway", CFG_WIFI_GATEWAY); WIFI_PutDot_Debug();
+		PREFERENCES_PutString("StaticIP", CFG_WIFI_StaticIP); WIFI_PutDot_Debug();
+		PREFERENCES_PutString("Mask", CFG_WIFI_MASK); WIFI_PutDot_Debug();
+		PREFERENCES_PutString("Gateway", CFG_WIFI_GATEWAY); WIFI_PutDot_Debug();
 
 		PREFERENCES_PutString("ASSID", CFG_WIFI_AdministratorSSID); WIFI_PutDot_Debug();
 		PREFERENCES_PutString("APSW", CFG_WIFI_AdministratorPSW); WIFI_PutDot_Debug();
@@ -388,8 +429,6 @@ void WIFI_Setup(void)
 	WIFI_LoadConfig();
 	
 	board.AddTask(&XB_PING_DefTask);
-	
-	
 }
 void WIFI_GUI_Repaint()
 {
@@ -421,7 +460,7 @@ uint32_t WIFI_DoLoop(void)
 						WIFI_HardDisconnect();
 						WIFI_GUI_Repaint();
 					}
-
+					else
 					// Jeœli jeszcze nie sprawdzone czy jest internet dostepny
 					if((WIFI_InternetStatus == isConnect) && (WiFiStatus == wsConnect))
 					{
@@ -474,7 +513,7 @@ uint32_t WIFI_DoLoop(void)
 				DEF_WAITMS_VAR(hhh1);
 				if (WiFiStatus == wsConnect)
 				{
-					BEGIN_WAITMS(hhh1, 20000)
+					BEGIN_WAITMS(hhh1, 1000)
 					{
 						WIFI_HardDisconnect();
 							
@@ -605,8 +644,11 @@ uint32_t WIFI_DoLoop(void)
 			#endif
 			board.Log('.');
 			PING_8888_addr = WIFI_dnsip1;
-			PING_GATEWAY_addr = CFG_WIFI_GATEWAY;
-			WiFi.config(IPAddress(CFG_WIFI_StaticIP), IPAddress(CFG_WIFI_GATEWAY), IPAddress(CFG_WIFI_MASK), WIFI_dnsip1, WIFI_dnsip2);
+			{IPAddress ip; ip.fromString(CFG_WIFI_StaticIP); CFG_WIFI_StaticIP_IP = ip; }
+			{IPAddress ip; ip.fromString(CFG_WIFI_MASK); CFG_WIFI_MASK_IP = ip; }
+			{IPAddress ip; ip.fromString(CFG_WIFI_GATEWAY); CFG_WIFI_GATEWAY_IP = ip; }
+			PING_GATEWAY_addr = CFG_WIFI_GATEWAY_IP;
+			WiFi.config(CFG_WIFI_StaticIP_IP, CFG_WIFI_GATEWAY_IP,CFG_WIFI_MASK_IP, WIFI_dnsip1, WIFI_dnsip2);
 			board.Log('.');
 			WiFi.setSleep(false);
 			board.Log('.');
@@ -783,9 +825,9 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 						DEF_MENUITEMNAME(5, String(FSS("Save Config")));
 						DEF_MENUITEMNAME(6, "Set SSID [" + CFG_WIFI_SSID + "]");
 						DEF_MENUITEMNAME(7, String(FSS("Set PASSWORD")));
-						DEF_MENUITEMNAME(8, "Set STA IP      (" + IPAddress(CFG_WIFI_StaticIP).toString() + ")");
-						DEF_MENUITEMNAME(9, "Set STA Mask    (" + IPAddress(CFG_WIFI_MASK).toString() + ")");
-						DEF_MENUITEMNAME(10, "Set STA GateWay (" + IPAddress(CFG_WIFI_GATEWAY).toString() + ")");
+						DEF_MENUITEMNAME(8, "Set STA IP      (" + CFG_WIFI_StaticIP + ")");
+						DEF_MENUITEMNAME(9, "Set STA Mask    (" + CFG_WIFI_MASK + ")");
+						DEF_MENUITEMNAME(10, "Set STA GateWay (" + CFG_WIFI_GATEWAY + ")");
 					}
 					END_MENUITEMNAME()
 					return true;
@@ -853,6 +895,8 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 		}
 	case IM_INPUTDIALOG:
 	{
+		
+		
 		BEGIN_INPUTDIALOGINIT(0)
 			DEF_INPUTDIALOGINIT(tivDynArrayChar1, 16, &CFG_WIFI_SSID)
 		END_INPUTDIALOGINIT()
@@ -862,17 +906,30 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 		END_INPUTDIALOGINIT()
 
 		BEGIN_INPUTDIALOGINIT(2)
-			DEF_INPUTDIALOGINIT(tivIP, 15, &CFG_WIFI_StaticIP)
+			{IPAddress ip; ip.fromString(CFG_WIFI_StaticIP); CFG_WIFI_StaticIP_IP = ip; }
+			DEF_INPUTDIALOGINIT(tivIP, 15, &CFG_WIFI_StaticIP_IP)
 		END_INPUTDIALOGINIT()
 
 		BEGIN_INPUTDIALOGINIT(3)
-			DEF_INPUTDIALOGINIT(tivIP, 15, &CFG_WIFI_MASK)
+			{IPAddress ip; ip.fromString(CFG_WIFI_MASK); CFG_WIFI_MASK_IP = ip; }
+			DEF_INPUTDIALOGINIT(tivIP, 15, &CFG_WIFI_MASK_IP)
 		END_INPUTDIALOGINIT()
 				
 		BEGIN_INPUTDIALOGINIT(4)
-			DEF_INPUTDIALOGINIT(tivIP, 15, &CFG_WIFI_GATEWAY)
+			{IPAddress ip; ip.fromString(CFG_WIFI_GATEWAY); CFG_WIFI_GATEWAY_IP = ip; }
+			DEF_INPUTDIALOGINIT(tivIP, 15, &CFG_WIFI_GATEWAY_IP)
 		END_INPUTDIALOGINIT()
 
+		BEGIN_INPUTDIALOG_ENTER(2)
+			CFG_WIFI_StaticIP = IPAddress(CFG_WIFI_StaticIP_IP).toString();
+		END_INPUTDIALOG_ENTER()
+		BEGIN_INPUTDIALOG_ENTER(3)
+			CFG_WIFI_MASK = IPAddress(CFG_WIFI_MASK_IP).toString() ;
+		END_INPUTDIALOG_ENTER()
+		BEGIN_INPUTDIALOG_ENTER(4)
+			CFG_WIFI_GATEWAY = IPAddress(CFG_WIFI_GATEWAY_IP).toString() ;
+		END_INPUTDIALOG_ENTER()
+			
 		BEGIN_INPUTDIALOGCAPTION(0)
 			DEF_INPUTDIALOGCAPTION("Edit WIFI SSID")
 		END_INPUTDIALOGCAPTION()

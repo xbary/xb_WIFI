@@ -8,11 +8,11 @@ void XB_PING_Setup();
 uint32_t XB_PING_DoLoop();
 bool XB_PING_DoMessage(TMessageBoard *Am);
 
-TTaskDef XB_PING_DefTask = { 15, &XB_PING_Setup,&XB_PING_DoLoop,&XB_PING_DoMessage };
+TTaskDef XB_PING_DefTask = { 1, &XB_PING_Setup,&XB_PING_DoLoop,&XB_PING_DoMessage };
 TPING_FunctionStep PING_FunctionStep;
 
-bool PING_8888_IS = false;
-bool PING_GATEWAY_IS = false;
+bool PING_8888_IS = true;
+bool PING_GATEWAY_IS = true;
 uint32_t PING_8888_addr = IPAddress(8, 8, 8, 8);
 uint32_t PING_GATEWAY_addr = IPAddress(192, 168, 1, 1);
 
@@ -27,15 +27,12 @@ void XB_PING_Setup()
 
 uint32_t XB_PING_DoLoop()
 {
-	docheckping = true;
+	if (WiFi.status()==WL_CONNECTED ) docheckping = true;
+
 	switch (PING_FunctionStep)
 	{
 	case pfsIDLE:
 	{
-		/*DEF_WAITMS_VAR(sss);
-		BEGIN_WAITMS(sss, 1000);
-		Serial.print("\n"+String(Serial.availableForWrite()));
-		END_WAITMS(sss);*/
 		return 0;
 	}
 	case pfsCheckPingOK:
@@ -76,7 +73,7 @@ uint32_t XB_PING_DoLoop()
 			PING_GATEWAY_IS = true;
 		}
 		//docheckping = false;
-		return 1000;
+		return 500;
 	}
 	default: PING_FunctionStep = pfsIDLE; break;
 	}
