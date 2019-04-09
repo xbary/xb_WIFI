@@ -648,7 +648,8 @@ uint32_t WIFI_DoLoop(void)
 			{IPAddress ip; ip.fromString(CFG_WIFI_MASK); CFG_WIFI_MASK_IP = ip; }
 			{IPAddress ip; ip.fromString(CFG_WIFI_GATEWAY); CFG_WIFI_GATEWAY_IP = ip; }
 			PING_GATEWAY_addr = CFG_WIFI_GATEWAY_IP;
-			WiFi.config(CFG_WIFI_StaticIP_IP, CFG_WIFI_GATEWAY_IP,CFG_WIFI_MASK_IP, WIFI_dnsip1, WIFI_dnsip2);
+//			WiFi.config(CFG_WIFI_StaticIP_IP, CFG_WIFI_GATEWAY_IP, CFG_WIFI_MASK_IP, WIFI_dnsip1, WIFI_dnsip2);
+			WiFi.config(CFG_WIFI_StaticIP_IP, CFG_WIFI_GATEWAY_IP, CFG_WIFI_MASK_IP, CFG_WIFI_GATEWAY_IP, WIFI_dnsip1);
 			board.Log('.');
 			WiFi.setSleep(false);
 			board.Log('.');
