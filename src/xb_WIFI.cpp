@@ -2,15 +2,13 @@
 #include <xb_WIFI.h>
 #include <xb_PING.h>
 #include <utils/ping.h>
-#include <xb_GUI.h>
-#include <xb_GUI_Gadget.h>
-#include <xb_PREFERENCES.h>
+
 #ifdef ESP32
 #include <ESPmDNS.h>
 #include <WiFi.h>
 #endif
 
-#ifdef ARDUINO_OTA
+#ifdef WIFI_ARDUINO_OTA
 #include <ArduinoOTA.h>
 #endif
 
@@ -38,6 +36,9 @@ IPAddress WIFI_dnsip2(8, 8, 4, 4);
 uint8_t WIFI_mac[6];
 
 #ifdef XB_GUI
+#include <xb_GUI.h>
+#include <xb_GUI_Gadget.h>
+
 TWindowClass *WIFI_winHandle0;
 TGADGETMenu *WIFI_menuhandle1;
 TGADGETInputDialog *WIFI_inputdialoghandle0_ssid;
@@ -51,29 +52,32 @@ TGADGETInputDialog *WIFI_inputdialoghandle4_gateway_ip;
 bool CFG_WIFI_AutoConnect = false;
 bool CFG_WIFI_DEBUG = true;
 
-#ifndef DEFAULT_WIFI_SSID
-#define DEFAULT_WIFI_SSID ""
+#ifndef WIFI_SSID_DEFAULT
+#define WIFI_SSID_DEFAULT ""
 #endif
-String CFG_WIFI_SSID = DEFAULT_WIFI_SSID;
+String CFG_WIFI_SSID = WIFI_SSID_DEFAULT;
 
-#ifndef DEFAULT_WIFI_PASSWORD
-#define DEFAULT_WIFI_PASSWORD ""
+#ifndef WIFI_PASSWORD_DEFAULT
+#define WIFI_PASSWORD_DEFAULT ""
 #endif
-String CFG_WIFI_PSW = DEFAULT_WIFI_PASSWORD;
-#ifndef DEFAULT_WIFI_STATICIP
-#define DEFAULT_WIFI_STATICIP "0.0.0.0"
+String CFG_WIFI_PSW = WIFI_PASSWORD_DEFAULT;
+
+#ifndef WIFI_STATICIP_DEFAULT
+#define WIFI_STATICIP_DEFAULT "0.0.0.0"
 #endif
-String CFG_WIFI_StaticIP = DEFAULT_WIFI_STATICIP;
+String CFG_WIFI_StaticIP = WIFI_STATICIP_DEFAULT;
 uint32_t CFG_WIFI_StaticIP_IP;
-#ifndef DEFAULT_WIFI_MASK
-#define DEFAULT_WIFI_MASK "0.0.0.0"
+
+#ifndef WIFI_MASK_DEFAULT
+#define WIFI_MASK_DEFAULT "0.0.0.0"
 #endif
-String CFG_WIFI_MASK = DEFAULT_WIFI_MASK;
+String CFG_WIFI_MASK = WIFI_MASK_DEFAULT;
 uint32_t CFG_WIFI_MASK_IP;
-#ifndef DEFAULT_WIFI_GATEWAY
-#define DEFAULT_WIFI_GATEWAY "0.0.0.0"
+
+#ifndef WIFI_GATEWAY_DEFAULT
+#define WIFI_GATEWAY_DEFAULT "0.0.0.0"
 #endif
-String CFG_WIFI_GATEWAY = DEFAULT_WIFI_GATEWAY;
+String CFG_WIFI_GATEWAY = WIFI_GATEWAY_DEFAULT;
 uint32_t CFG_WIFI_GATEWAY_IP;
 
 
@@ -296,14 +300,14 @@ void WIFI_DoAllTaskInternetDisconnect(void)
 		}
 	}
 
-	#ifdef ARDUINO_OTA
+	#ifdef WIFI_ARDUINO_OTA
 	void WIFI_OTA_Init(void)
 	{
 		board.Log(FSS("ArduinoOTA Init"), true, true);
 		board.Log('.');
 		ArduinoOTA.setPort(8266);
 		board.Log('.');
-		ArduinoOTA.setHostname(FSS(DEVICE_NAME));
+		ArduinoOTA.setHostname(board.DeviceName.c_str());
 		board.Log('.');
 		//ArduinoOTA.setPassword("0987654321");
 
@@ -355,53 +359,61 @@ void WIFI_PutDot_Debug()
 
 bool WIFI_LoadConfig()
 {
-	PREFERENCES_BeginSection("WIFI");
+#ifdef XB_PREFERENCES
+	board.PREFERENCES_BeginSection("WIFI");
 	{
-		CFG_WIFI_DEBUG = PREFERENCES_GetBool("DEBUG", CFG_WIFI_DEBUG);  
+		CFG_WIFI_DEBUG = board.PREFERENCES_GetBool("DEBUG", CFG_WIFI_DEBUG);  
 		if (CFG_WIFI_DEBUG) board.Log(FSS("Load config"), true, true);
-		CFG_WIFI_AutoConnect = PREFERENCES_GetBool("AUTOCONNECT", CFG_WIFI_AutoConnect); WIFI_PutDot_Debug();
-		CFG_WIFI_SSID = PREFERENCES_GetString("SSID", CFG_WIFI_SSID); WIFI_PutDot_Debug();
-		CFG_WIFI_PSW = PREFERENCES_GetString("PSW", CFG_WIFI_PSW); WIFI_PutDot_Debug();
-		CFG_WIFI_StaticIP = PREFERENCES_GetString("StaticIP", CFG_WIFI_StaticIP); WIFI_PutDot_Debug();
-		CFG_WIFI_MASK = PREFERENCES_GetString("Mask", CFG_WIFI_MASK); WIFI_PutDot_Debug();
-		CFG_WIFI_GATEWAY = PREFERENCES_GetString("Gateway", CFG_WIFI_GATEWAY); WIFI_PutDot_Debug();
+		CFG_WIFI_AutoConnect = board.PREFERENCES_GetBool("AUTOCONNECT", CFG_WIFI_AutoConnect); WIFI_PutDot_Debug();
+		CFG_WIFI_SSID = board.PREFERENCES_GetString("SSID", CFG_WIFI_SSID); WIFI_PutDot_Debug();
+		CFG_WIFI_PSW = board.PREFERENCES_GetString("PSW", CFG_WIFI_PSW); WIFI_PutDot_Debug();
+		CFG_WIFI_StaticIP = board.PREFERENCES_GetString("StaticIP", CFG_WIFI_StaticIP); WIFI_PutDot_Debug();
+		CFG_WIFI_MASK = board.PREFERENCES_GetString("Mask", CFG_WIFI_MASK); WIFI_PutDot_Debug();
+		CFG_WIFI_GATEWAY = board.PREFERENCES_GetString("Gateway", CFG_WIFI_GATEWAY); WIFI_PutDot_Debug();
 
-		CFG_WIFI_AdministratorSSID = PREFERENCES_GetString("ASSID", CFG_WIFI_AdministratorSSID); WIFI_PutDot_Debug();
-		CFG_WIFI_AdministratorPSW = PREFERENCES_GetString("APSW", CFG_WIFI_AdministratorPSW); WIFI_PutDot_Debug();
-		CFG_WIFI_AdministratorStaticIP = PREFERENCES_GetUINT32("AStaticIP", CFG_WIFI_AdministratorStaticIP); WIFI_PutDot_Debug();
-		CFG_WIFI_AdministratorMASK = PREFERENCES_GetUINT32("AMask", CFG_WIFI_AdministratorMASK); WIFI_PutDot_Debug();
-		CFG_WIFI_AdministratorGATEWAY = PREFERENCES_GetUINT32("AGateway", CFG_WIFI_AdministratorGATEWAY); WIFI_PutDot_Debug();
+		CFG_WIFI_AdministratorSSID = board.PREFERENCES_GetString("ASSID", CFG_WIFI_AdministratorSSID); WIFI_PutDot_Debug();
+		CFG_WIFI_AdministratorPSW = board.PREFERENCES_GetString("APSW", CFG_WIFI_AdministratorPSW); WIFI_PutDot_Debug();
+		CFG_WIFI_AdministratorStaticIP = board.PREFERENCES_GetUINT32("AStaticIP", CFG_WIFI_AdministratorStaticIP); WIFI_PutDot_Debug();
+		CFG_WIFI_AdministratorMASK = board.PREFERENCES_GetUINT32("AMask", CFG_WIFI_AdministratorMASK); WIFI_PutDot_Debug();
+		CFG_WIFI_AdministratorGATEWAY = board.PREFERENCES_GetUINT32("AGateway", CFG_WIFI_AdministratorGATEWAY); WIFI_PutDot_Debug();
 	}
-	PREFERENCES_EndSection();
+	board.PREFERENCES_EndSection();
 	if (CFG_WIFI_DEBUG) board.Log(FSS("OK"));
 	return true;
+#else
+	return false;
+#endif
 }
 
 bool WIFI_SaveConfig()
 {
-	PREFERENCES_BeginSection("WIFI");
+#ifdef XB_PREFERENCES
+	board.PREFERENCES_BeginSection("WIFI");
 	{
 
 		if (CFG_WIFI_DEBUG) board.Log(FSS("Save config"), true, true);
 
-		PREFERENCES_PutBool("AUTOCONNECT", CFG_WIFI_AutoConnect); WIFI_PutDot_Debug();
-		PREFERENCES_PutBool("DEBUG", CFG_WIFI_DEBUG); WIFI_PutDot_Debug();
-		PREFERENCES_PutString("SSID", CFG_WIFI_SSID); WIFI_PutDot_Debug(); 
-		PREFERENCES_PutString("PSW", CFG_WIFI_PSW); WIFI_PutDot_Debug(); 
-		PREFERENCES_PutString("StaticIP", CFG_WIFI_StaticIP); WIFI_PutDot_Debug();
-		PREFERENCES_PutString("Mask", CFG_WIFI_MASK); WIFI_PutDot_Debug();
-		PREFERENCES_PutString("Gateway", CFG_WIFI_GATEWAY); WIFI_PutDot_Debug();
+		board.PREFERENCES_PutBool("AUTOCONNECT", CFG_WIFI_AutoConnect); WIFI_PutDot_Debug();
+		board.PREFERENCES_PutBool("DEBUG", CFG_WIFI_DEBUG); WIFI_PutDot_Debug();
+		board.PREFERENCES_PutString("SSID", CFG_WIFI_SSID); WIFI_PutDot_Debug(); 
+		board.PREFERENCES_PutString("PSW", CFG_WIFI_PSW); WIFI_PutDot_Debug(); 
+		board.PREFERENCES_PutString("StaticIP", CFG_WIFI_StaticIP); WIFI_PutDot_Debug();
+		board.PREFERENCES_PutString("Mask", CFG_WIFI_MASK); WIFI_PutDot_Debug();
+		board.PREFERENCES_PutString("Gateway", CFG_WIFI_GATEWAY); WIFI_PutDot_Debug();
 
-		PREFERENCES_PutString("ASSID", CFG_WIFI_AdministratorSSID); WIFI_PutDot_Debug();
-		PREFERENCES_PutString("APSW", CFG_WIFI_AdministratorPSW); WIFI_PutDot_Debug();
-		PREFERENCES_PutUINT32("AStaticIP", CFG_WIFI_AdministratorStaticIP); WIFI_PutDot_Debug();
-		PREFERENCES_PutUINT32("AMask", CFG_WIFI_AdministratorMASK); WIFI_PutDot_Debug();
-		PREFERENCES_PutUINT32("AGateway", CFG_WIFI_AdministratorGATEWAY); WIFI_PutDot_Debug();
+		board.PREFERENCES_PutString("ASSID", CFG_WIFI_AdministratorSSID); WIFI_PutDot_Debug();
+		board.PREFERENCES_PutString("APSW", CFG_WIFI_AdministratorPSW); WIFI_PutDot_Debug();
+		board.PREFERENCES_PutUINT32("AStaticIP", CFG_WIFI_AdministratorStaticIP); WIFI_PutDot_Debug();
+		board.PREFERENCES_PutUINT32("AMask", CFG_WIFI_AdministratorMASK); WIFI_PutDot_Debug();
+		board.PREFERENCES_PutUINT32("AGateway", CFG_WIFI_AdministratorGATEWAY); WIFI_PutDot_Debug();
 	}
-	PREFERENCES_EndSection();
+	board.PREFERENCES_EndSection();
 
 	if (CFG_WIFI_DEBUG) board.Log(FSS("OK"));
 	return true;
+#else
+	return false;
+#endif
 }
 
 void WIFI_Setup(void)
@@ -489,7 +501,7 @@ uint32_t WIFI_DoLoop(void)
 					#ifdef ESP32
 					if (WiFiStatus == wsConnect)
 					{
-					#ifdef ARDUINO_OTA
+					#ifdef WIFI_ARDUINO_OTA
 						ArduinoOTA.handle();
 						#endif
 					}
@@ -638,9 +650,9 @@ uint32_t WIFI_DoLoop(void)
 		{
 			board.Log('.');
 			#ifdef ESP32
-			WiFi.setHostname(FSS(DEVICE_NAME));
+			WiFi.setHostname(board.DeviceName.c_str());
 			#else
-			WiFi.hostname(FSS(DEVICE_NAME));
+			WiFi.hostname(board.DeviceName.c_str());
 			#endif
 			board.Log('.');
 			PING_8888_addr = WIFI_dnsip1;
@@ -695,7 +707,7 @@ uint32_t WIFI_DoLoop(void)
 		}
 	case wfCheckInternetAvaliable:
 		{
-		#ifdef ARDUINO_OTA
+		#ifdef WIFI_ARDUINO_OTA
 			ArduinoOTA.handle();
 			#endif
 
@@ -768,7 +780,7 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 		{
 			WIFI_GUI_Repaint();
 			PING_GATEWAY_IS = true;
-			#ifdef ARDUINO_OTA
+			#ifdef WIFI_ARDUINO_OTA
 			WIFI_OTA_Init();
 			#endif
 			WIFI_GUI_Repaint();
