@@ -27,5 +27,5 @@ extern TTaskDef XB_WIFI_DefTask;
 extern TWiFiStatus WiFiStatus;
 extern TInternetStatus WIFI_InternetStatus;
 extern uint8_t WIFI_mac[6];
-
+extern uint32_t CFG_WIFI_StaticIP_IP;
 #endif
