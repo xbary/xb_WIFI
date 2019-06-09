@@ -48,9 +48,9 @@ extern "C" {
 #if !PING_USE_SOCKETS
 	void ping_send_now(void);
 #endif /* !PING_USE_SOCKETS */
-	extern bool dofreeping;
-	extern bool docheckping;
-	extern uint32_t statusdoping;
+	extern volatile bool dofreeping;
+	extern volatile bool docheckping;
+	extern volatile uint32_t statusdoping;
 
 #ifdef __cplusplus
 }

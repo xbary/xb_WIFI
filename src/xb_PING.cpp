@@ -111,6 +111,8 @@ bool XB_PING_DoMessage(TMessageBoard *Am)
 		PING_GATEWAY_IS = false;
 		ping_option_info[1].ping_OK = false;
 		ping_deinit();
+		statusdoping = 0;
+
 
 		return true;
 	}
@@ -122,6 +124,7 @@ bool XB_PING_DoMessage(TMessageBoard *Am)
 		PING_GATEWAY_IS = false;
 		ping_option_info[1].ping_OK = false;
 		ping_deinit();
+		statusdoping = 0;
 		return true;
 	}
 	case IM_GET_TASKNAME_STRING:

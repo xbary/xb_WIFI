@@ -102,12 +102,12 @@
 #define PING_RESULT(ping_ok)
 #endif
 
-uint8_t CurrentIDPING=0;
+volatile uint8_t CurrentIDPING=0;
 static sys_thread_t pingtaskhandle;
 
-bool dofreeping = false;
-bool docheckping = false;
-uint32_t statusdoping;
+volatile bool WiFiInit = false;
+volatile bool docheckping = false;
+volatile uint32_t statusdoping;
 
 /* ping variables */
 static u16_t ping_seq_num;
@@ -194,7 +194,7 @@ static void IRAM_ATTR ping_recv(int s)
 					esp_ping_result(CurrentIDPING,(ICMPH_TYPE(iecho) == ICMP_ER), len, (sys_now() - ping_time));
 					bool pingok = true;
 					esp_ping_set_target(CurrentIDPING, PING_TARGET_IS, &pingok, sizeof(bool));
-					statusdoping = 0;
+					if (statusdoping > 0) statusdoping--;
 					return;
 				}
 				else {
@@ -210,7 +210,7 @@ static void IRAM_ATTR ping_recv(int s)
 	}
 
 	esp_ping_result(CurrentIDPING,0, len, (sys_now() - ping_time));
-	statusdoping = 0;
+	if (statusdoping>0) statusdoping--;
 }
 
 
@@ -238,10 +238,11 @@ static void IRAM_ATTR ping_thread(void *arg)
 
 	while (1) 
 	{
-		if (docheckping)
+		if ( (docheckping) && (WiFiInit))
 		{
 			statusdoping++;
-		
+			CurrentIDPING++; if (CurrentIDPING >= PING_COUNT) CurrentIDPING = 0;
+
 			ip4_addr_t ipaddr;
 			bool pingok = false;
 
@@ -266,14 +267,15 @@ static void IRAM_ATTR ping_thread(void *arg)
 				ip_addr_debug_print(PING_DEBUG, &ping_target);
 				LWIP_DEBUGF(PING_DEBUG, (" - error\n"));
 			}
+
 			
-
-			CurrentIDPING++; if (CurrentIDPING >= PING_COUNT) CurrentIDPING = 0;
-
+			if (statusdoping > 0) statusdoping--;
 			sys_msleep(PING_DELAY);
+		
 		}
 		else
 		{
+			if (statusdoping > 0) statusdoping--;
 			sys_msleep(1000);		
 		}
 	}
@@ -286,10 +288,11 @@ void ping_init(void)
 	{
 		pingtaskhandle = sys_thread_new("ping_thread", ping_thread, NULL, DEFAULT_THREAD_STACKSIZE, DEFAULT_THREAD_PRIO);
 	}
+	WiFiInit = true;
 	docheckping = true;
 }
 
 void ping_deinit(void)
 {
-
+	WiFiInit = false;
 }

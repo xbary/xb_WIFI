@@ -138,219 +138,163 @@ void WIFI_DoAllTaskInternetDisconnect(void)
 	board.DoMessageOnAllTask(&mb,true,doBACKWARD); 
 }
 
-	void WIFI_DoAllTaskInternetConnect(void)
-	{
-		TMessageBoard mb; xb_memoryfill(&mb, sizeof(TMessageBoard), 0);
-		mb.IDMessage = IM_INTERNET_CONNECT;
+void WIFI_DoAllTaskInternetConnect(void)
+{
+	TMessageBoard mb; xb_memoryfill(&mb, sizeof(TMessageBoard), 0);
+	mb.IDMessage = IM_INTERNET_CONNECT;
 
-		board.DoMessageOnAllTask(&mb, true, doFORWARD); 
+	board.DoMessageOnAllTask(&mb, true, doFORWARD); 
+}
+
+void WIFI_DoAllTaskWiFiConnect(void)
+{
+	TMessageBoard mb; xb_memoryfill(&mb, sizeof(TMessageBoard), 0);
+	mb.IDMessage = IM_WIFI_CONNECT;
+
+	board.DoMessageOnAllTask(&mb, true, doFORWARD); 
+}
+
+void WIFI_SetConnectWiFi(void)
+{
+	WiFiStatus = wsConnect;
+	WIFI_DoAllTaskWiFiConnect();
+}
+
+void WIFI_SetConnectInternet(void)
+{
+	WIFI_InternetStatus = isConnect;
+	WIFI_DoAllTaskInternetConnect();
+}
+
+void WIFI_SetDisconnectWiFi(void)
+{
+	WiFiStatus = wsDisconnect;
+	WIFI_DoAllTaskWifiDisconnect();
+}
+
+void WIFI_SetDisconnectInternet(void)
+{
+	WIFI_InternetStatus = isDisconnect;
+	WIFI_DoAllTaskInternetDisconnect();
+}
+
+void WIFI_HardDisconnect(void)
+{
+	int i = 0;
+	while (statusdoping > 0)
+	{
+		board.Log('.');
+		delay(250);
+		i++;if (i > 4)break;
 	}
-
-	void WIFI_DoAllTaskWiFiConnect(void)
-	{
-		TMessageBoard mb; xb_memoryfill(&mb, sizeof(TMessageBoard), 0);
-		mb.IDMessage = IM_WIFI_CONNECT;
-
-		board.DoMessageOnAllTask(&mb, true, doFORWARD); 
-	}
-
-	void WIFI_SetConnectWiFi(void)
-	{
-		WiFiStatus = wsConnect;
-		WIFI_DoAllTaskWiFiConnect();
-	}
-
-	void WIFI_SetConnectInternet(void)
-	{
-		WIFI_InternetStatus = isConnect;
-		WIFI_DoAllTaskInternetConnect();
-	}
-
-	void WIFI_SetDisconnectWiFi(void)
-	{
-		WiFiStatus = wsDisconnect;
-		WIFI_DoAllTaskWifiDisconnect();
-	}
-
-	void WIFI_SetDisconnectInternet(void)
-	{
-		WIFI_InternetStatus = isDisconnect;
-		WIFI_DoAllTaskInternetDisconnect();
-	}
-
-	void WIFI_HardDisconnect(void)
-	{
-		int i = 0;
-		while (statusdoping > 0)
-		{
-			board.Log('.');
-			delay(250);
-			i++;if (i > 4)break;
-		}
-		docheckping = false;
+	statusdoping++;
+	docheckping = false;
 		
-		WIFI_SetDisconnectInternet();
-		WIFI_SetDisconnectWiFi();
-		WiFi.scanDelete();
-		delay(100);
+	WIFI_SetDisconnectInternet();
+	WIFI_SetDisconnectWiFi();
+	WiFi.scanDelete();
+	delay(100);
 		
-		if (WiFi.status() == WL_CONNECTED)
-		{
-			board.Log(FSS("Disconnecting WIFI."), true, true);
-			board.Log('.');
-			WiFi.disconnect(true);
-			delay(100);
-		}
-		else
-		{
-			board.Log(FSS("Reseting WIFI."), true, true);
-		}
-		board.Log('.');
-		WiFi.mode(WIFI_OFF);
-		delay(100);
-		board.Log('.');
-
-		WiFi.persistent(false);
-		board.Log('.');
-		delay(100);
-		WiFi.setAutoConnect(false);
-		board.Log('.');
-		delay(100);
-		WiFi.setAutoReconnect(false);
-		board.Log('.');
-		delay(100);
-		WiFiFunction = wfHandle;
-		board.Log(FSS("OK"));
-	}
-/*
-	bool WIFI_SetDefaultConfig(void)
+	if (WiFi.status() == WL_CONNECTED)
 	{
-		bool result = true;
-		IPAddress ip;
-
-		CFG_WIFI_SSID = DEFAULT_WIFI_SSID;
-		CFG_WIFI_PSW = DEFAULT_WIFI_PASSWORD;
-
-		if (ip.fromString(DEFAULT_WIFI_STATICIP))
-		{
-			CFG_WIFI_StaticIP = ip;
-
-		}
-		else
-		{
-			result = false;
-		}
-	
-		if (ip.fromString(DEFAULT_WIFI_MASK))
-		{
-			CFG_WIFI_MASK = ip;
-
-		}
-		else
-		{
-			result = false;
-		}
-
-		if (ip.fromString(DEFAULT_WIFI_GATEWAY))
-		{
-			CFG_WIFI_GATEWAY = ip;
-
-		}
-		else
-		{
-			result = false;
-		}
-
-		//----
-
-		CFG_WIFI_AdministratorSSID = "xbary-wm";
-		CFG_WIFI_AdministratorPSW = "0987654321";
-
-		if (ip.fromString(DEFAULT_WIFI_ADMINISTRATORSTATICIP))
-		{
-			CFG_WIFI_AdministratorStaticIP = ip;
-
-		}
-		else
-		{
-			result = false;
-		}
-		CFG_WIFI_AdministratorMASK = IPAddress(255, 255, 255, 0);
-		CFG_WIFI_AdministratorGATEWAY = IPAddress(192, 168, 137, 1);
-
-		return result;
+		board.Log(FSS("Disconnecting WIFI."), true, true);
+		board.Log('.');
+		WiFi.disconnect(true);
+		delay(100);
 	}
-*/
-	bool WIFI_CheckDisconnectWiFi(void)
+	else
 	{
-		if ((WiFi.status() != WL_CONNECTED))
+		board.Log(FSS("Reseting WIFI."), true, true);
+	}
+	board.Log('.');
+	WiFi.mode(WIFI_OFF);
+	delay(100);
+	board.Log('.');
+
+	WiFi.persistent(false);
+	board.Log('.');
+	delay(100);
+	WiFi.setAutoConnect(false);
+	board.Log('.');
+	delay(100);
+	WiFi.setAutoReconnect(false);
+	board.Log('.');
+	delay(100);
+	WiFiFunction = wfHandle;
+	statusdoping = 0;
+	board.Log(FSS("OK"));
+}
+
+bool WIFI_CheckDisconnectWiFi(void)
+{
+	if ((WiFi.status() != WL_CONNECTED))
+	{
+		if (WiFiStatus == wsConnect)
 		{
-			if (WiFiStatus == wsConnect)
-			{
-				return true;
-			}
-			else
-			{
-				return false;
-			}
+			return true;
 		}
 		else
 		{
 			return false;
 		}
 	}
-
-	#ifdef WIFI_ARDUINO_OTA
-	void WIFI_OTA_Init(void)
+	else
 	{
-		board.Log(FSS("ArduinoOTA Init"), true, true);
-		board.Log('.');
-		ArduinoOTA.setPort(8266);
-		board.Log('.');
-		ArduinoOTA.setHostname(board.DeviceName.c_str());
-		board.Log('.');
-		//ArduinoOTA.setPassword("0987654321");
-
-		board.Log('.');
-		#if !defined(_VMICRO_INTELLISENSE)
-		ArduinoOTA.onStart([](void) {
-			board.SendMessage_OTAUpdateStarted();
-			String type;
-			if (ArduinoOTA.getCommand() == U_FLASH)
-				type = "sketch";
-			else
-				type = "filesystem";
-
-			board.Log(String("\n\n[WIFI] Start updating " + type).c_str());
-		});
-
-		board.Log('.');
-		ArduinoOTA.onEnd([](void) {
-			board.Log("\n\rEnd");
-		});
-
-		board.Log('.');
-		ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-			board.Blink_RX(1);
-			board.Log('.');
-		});
-
-		board.Log('.');
-		ArduinoOTA.onError([](ota_error_t error) {
-			Serial.printf(FSS("Error[%u]: "), error);
-			if (error == OTA_AUTH_ERROR) Serial.println(FSS("Auth Failed"));
-			else if (error == OTA_BEGIN_ERROR) Serial.println(FSS("Begin Failed"));
-			else if (error == OTA_CONNECT_ERROR) Serial.println(FSS("Connect Failed"));
-			else if (error == OTA_RECEIVE_ERROR) Serial.println(FSS("Receive Failed"));
-			else if (error == OTA_END_ERROR) Serial.println(FSS("End Failed"));
-		});
-		#endif
-		board.Log('.');
-		ArduinoOTA.begin();
-		board.Log('.');
-		board.Log(FSS("OK"));
+		return false;
 	}
+}
+
+#ifdef WIFI_ARDUINO_OTA
+void WIFI_OTA_Init(void)
+{
+	board.Log(FSS("ArduinoOTA Init"), true, true);
+	board.Log('.');
+	ArduinoOTA.setPort(8266);
+	board.Log('.');
+	ArduinoOTA.setHostname(board.DeviceName.c_str());
+	board.Log('.');
+	//ArduinoOTA.setPassword("0987654321");
+
+	board.Log('.');
+	#if !defined(_VMICRO_INTELLISENSE)
+	ArduinoOTA.onStart([](void) {
+		board.SendMessage_OTAUpdateStarted();
+		String type;
+		if (ArduinoOTA.getCommand() == U_FLASH)
+			type = "sketch";
+		else
+			type = "filesystem";
+
+		board.Log(String("\n\n[WIFI] Start updating " + type).c_str());
+	});
+
+	board.Log('.');
+	ArduinoOTA.onEnd([](void) {
+		board.Log("\n\rEnd");
+	});
+
+	board.Log('.');
+	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+		board.Blink_RX(1);
+		board.Log('.');
+	});
+
+	board.Log('.');
+	ArduinoOTA.onError([](ota_error_t error) {
+		Serial.printf(FSS("Error[%u]: "), error);
+		if (error == OTA_AUTH_ERROR) Serial.println(FSS("Auth Failed"));
+		else if (error == OTA_BEGIN_ERROR) Serial.println(FSS("Begin Failed"));
+		else if (error == OTA_CONNECT_ERROR) Serial.println(FSS("Connect Failed"));
+		else if (error == OTA_RECEIVE_ERROR) Serial.println(FSS("Receive Failed"));
+		else if (error == OTA_END_ERROR) Serial.println(FSS("End Failed"));
+	});
 	#endif
+	board.Log('.');
+	ArduinoOTA.begin();
+	board.Log('.');
+	board.Log(FSS("OK"));
+}
+#endif
 
 void WIFI_PutDot_Debug()
 {
@@ -368,6 +312,8 @@ bool WIFI_LoadConfig()
 		CFG_WIFI_SSID = board.PREFERENCES_GetString("SSID", CFG_WIFI_SSID); WIFI_PutDot_Debug();
 		CFG_WIFI_PSW = board.PREFERENCES_GetString("PSW", CFG_WIFI_PSW); WIFI_PutDot_Debug();
 		CFG_WIFI_StaticIP = board.PREFERENCES_GetString("StaticIP", CFG_WIFI_StaticIP); WIFI_PutDot_Debug();
+		{IPAddress ip; ip.fromString(CFG_WIFI_StaticIP); CFG_WIFI_StaticIP_IP = ip; }
+
 		CFG_WIFI_MASK = board.PREFERENCES_GetString("Mask", CFG_WIFI_MASK); WIFI_PutDot_Debug();
 		CFG_WIFI_GATEWAY = board.PREFERENCES_GetString("Gateway", CFG_WIFI_GATEWAY); WIFI_PutDot_Debug();
 
