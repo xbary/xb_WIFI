@@ -79,12 +79,12 @@
 
 /** ping receive timeout - in milliseconds */
 #ifndef PING_RCV_TIMEO
-#define PING_RCV_TIMEO 1000
+#define PING_RCV_TIMEO 1500
 #endif
 
 /** ping delay - in milliseconds */
 #ifndef PING_DELAY
-#define PING_DELAY     1250
+#define PING_DELAY     3010
 #endif
 
 /** ping identifier - must fit on a u16_t */
@@ -103,6 +103,7 @@
 #endif
 
 volatile uint8_t CurrentIDPING=0;
+volatile uint8_t CurrentIDPING_Drop = 0;
 static sys_thread_t pingtaskhandle;
 
 volatile bool WiFiInit = false;
@@ -198,6 +199,7 @@ static void IRAM_ATTR ping_recv(int s)
 					return;
 				}
 				else {
+					CurrentIDPING_Drop++;
 					LWIP_DEBUGF(PING_DEBUG, ("ping: drop\n"));
 				}
 			}
@@ -241,8 +243,15 @@ static void IRAM_ATTR ping_thread(void *arg)
 		if ( (docheckping) && (WiFiInit))
 		{
 			statusdoping++;
-			CurrentIDPING++; if (CurrentIDPING >= PING_COUNT) CurrentIDPING = 0;
-
+			if (CurrentIDPING_Drop == 0)
+			{
+				CurrentIDPING++; if (CurrentIDPING >= PING_COUNT) CurrentIDPING = 0;
+			}
+			else
+			{
+				CurrentIDPING_Drop = 0;
+			}
+				
 			ip4_addr_t ipaddr;
 			bool pingok = false;
 
@@ -276,7 +285,7 @@ static void IRAM_ATTR ping_thread(void *arg)
 		else
 		{
 			if (statusdoping > 0) statusdoping--;
-			sys_msleep(1000);		
+			sys_msleep(PING_DELAY);
 		}
 	}
 }
