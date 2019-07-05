@@ -142,6 +142,7 @@ bool XB_PING_DoMessage(TMessageBoard *Am)
 			*(Am->Data.PointerString) = FSS("C.P. 8888:");
 			*(Am->Data.PointerString) += String((int)PING_8888_IS)+ " GW:";
 			*(Am->Data.PointerString) += String((int)PING_GATEWAY_IS);
+			*(Am->Data.PointerString) += " STDP:"+String(statusdoping);
 
 			break;
 		}
