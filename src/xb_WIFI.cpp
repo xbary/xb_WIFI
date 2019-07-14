@@ -1,11 +1,30 @@
 #include <xb_board.h>
 #include <xb_WIFI.h>
 #include <xb_PING.h>
-#include <utils/ping.h>
 
 #ifdef ESP32
 #include <ESPmDNS.h>
 #include <WiFi.h>
+
+extern "C" {
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <inttypes.h>
+#include <string.h>
+
+#include <esp_err.h>
+#include <esp_wifi.h>
+#include <esp_event_loop.h>
+#include "lwip/ip_addr.h"
+#include "lwip/opt.h"
+#include "lwip/err.h"
+#include "lwip/dns.h"
+#include "esp_ipc.h"
+
+} //extern "C"
+
 #endif
 
 #ifdef WIFI_ARDUINO_OTA
@@ -101,7 +120,7 @@ uint32_t CFG_WIFI_AdministratorGATEWAY = 0;
 //}
 //*/
 
-	void TCPClientDestroy(WiFiClient **Awificlient)
+void TCPClientDestroy(WiFiClient **Awificlient)
 {
 	if (Awificlient != NULL)
 	{
@@ -181,14 +200,6 @@ void WIFI_SetDisconnectInternet(void)
 void WIFI_HardDisconnect(void)
 {
 	int i = 0;
-	while (statusdoping > 0)
-	{
-		board.Log('.');
-		delay(250);
-		i++;if (i > 4)break;
-	}
-	statusdoping++;
-	docheckping = false;
 		
 	WIFI_SetDisconnectInternet();
 	WIFI_SetDisconnectWiFi();
@@ -221,7 +232,6 @@ void WIFI_HardDisconnect(void)
 	board.Log('.');
 	delay(100);
 	WiFiFunction = wfHandle;
-	statusdoping = 0;
 	board.Log(FSS("OK"));
 }
 
@@ -601,15 +611,16 @@ uint32_t WIFI_DoLoop(void)
 			WiFi.hostname(board.DeviceName.c_str());
 			#endif
 			board.Log('.');
-			PING_8888_addr = WIFI_dnsip1;
+			PING_8888_addr = WIFI_dnsip2;
 			{IPAddress ip; ip.fromString(CFG_WIFI_StaticIP); CFG_WIFI_StaticIP_IP = ip; }
 			{IPAddress ip; ip.fromString(CFG_WIFI_MASK); CFG_WIFI_MASK_IP = ip; }
 			{IPAddress ip; ip.fromString(CFG_WIFI_GATEWAY); CFG_WIFI_GATEWAY_IP = ip; }
 			PING_GATEWAY_addr = CFG_WIFI_GATEWAY_IP;
-//			WiFi.config(CFG_WIFI_StaticIP_IP, CFG_WIFI_GATEWAY_IP, CFG_WIFI_MASK_IP, WIFI_dnsip1, WIFI_dnsip2);
-			WiFi.config(CFG_WIFI_StaticIP_IP, CFG_WIFI_GATEWAY_IP, CFG_WIFI_MASK_IP, CFG_WIFI_GATEWAY_IP, WIFI_dnsip1);
+			WiFi.config(CFG_WIFI_StaticIP_IP, CFG_WIFI_GATEWAY_IP, CFG_WIFI_MASK_IP, WIFI_dnsip1, WIFI_dnsip2);
 			board.Log('.');
+			WiFi.mode(WIFI_STA);
 			WiFi.setSleep(false);
+			esp_wifi_set_ps(WIFI_PS_NONE);
 			board.Log('.');
 			WiFi.begin(CFG_WIFI_SSID.c_str(), CFG_WIFI_PSW.c_str());
 		

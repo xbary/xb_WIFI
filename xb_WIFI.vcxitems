@@ -16,13 +16,9 @@
   <ItemGroup>
     <ClCompile Include="$(MSBuildThisFileDirectory)src\xb_PING.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)src\xb_WIFI.cpp" />
-    <ClCompile Include="$(MSBuildThisFileDirectory)src\utils\esp_ping.c" />
-    <ClCompile Include="$(MSBuildThisFileDirectory)src\utils\ping.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="$(MSBuildThisFileDirectory)src\xb_PING.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)src\xb_WIFI.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)src\utils\esp_ping.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)src\utils\ping.h" />
   </ItemGroup>
 </Project>

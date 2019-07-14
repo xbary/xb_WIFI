@@ -1,8 +1,7 @@
 #include <xb_board.h>
 #include <xb_PING.h>
-#include <utils\esp_ping.h>
-#include <utils\ping.h>
 #include <WiFi.h>
+#include <lwip/dns.h>
 
 void XB_PING_Setup();
 uint32_t XB_PING_DoLoop();
@@ -12,8 +11,10 @@ TTaskDef XB_PING_DefTask = { 1, &XB_PING_Setup,&XB_PING_DoLoop,&XB_PING_DoMessag
 TPING_FunctionStep PING_FunctionStep;
 
 bool PING_8888_IS = true;
+int PING_8888_TC = 0;
+
 bool PING_GATEWAY_IS = true;
-uint32_t PING_8888_addr = IPAddress(8, 8, 8, 8);
+uint32_t PING_8888_addr = IPAddress(8, 8, 4, 4);
 uint32_t PING_GATEWAY_addr = IPAddress(192, 168, 1, 1);
 
 void XB_PING_Setup()
@@ -21,14 +22,13 @@ void XB_PING_Setup()
 	board.Log(FSS("Init"), true, true,tlInfo);
 
 	board.Log(FSS("...OK"));
-	
 	PING_FunctionStep = pfsIDLE;
 }
 
+WiFiClient pingoclient;
+
 uint32_t XB_PING_DoLoop()
 {
-	if (WiFi.status()==WL_CONNECTED ) docheckping = true;
-
 	switch (PING_FunctionStep)
 	{
 	case pfsIDLE:
@@ -37,49 +37,42 @@ uint32_t XB_PING_DoLoop()
 	}
 	case pfsCheckPingOK:
 	{
-		String s;
-		static int ping_0_errorcount = 0;
-		static int ping_1_errorcount = 0;
-
-		if (ping_option_info[0].ping_OK == false)
+		if (!pingoclient.connected())
 		{
-			ping_0_errorcount++;
-			if (ping_0_errorcount > 5)
+			
+			pingoclient.connect("google.com", 80,1000);
+			if (pingoclient.connected())
 			{
-				PING_8888_IS = false;
-				ping_0_errorcount = 0;
+				pingoclient.stop();
+				PING_8888_IS = true;
+				PING_8888_TC = 0;
+				return 1750;
 			}
+			else
+			{
+				PING_8888_TC++;
+				if (PING_8888_TC >= 3)
+				{
+					PING_8888_IS = false;
+				}
+				return 600;
+			}
+			return 0;
 		}
 		else
 		{
-			ping_0_errorcount = 0;
 			PING_8888_IS = true;
 		}
 
-		if (ping_option_info[1].ping_OK == false)
-		{
-			ping_1_errorcount++;
-			if (ping_1_errorcount > 5)
-			{
-				PING_GATEWAY_IS = false;
-				ping_option_info[0].ping_OK = false;
-				PING_8888_IS = false;
-				ping_1_errorcount = 0;
-			}
-		}
-		else
-		{
-			ping_1_errorcount = 0;
-			PING_GATEWAY_IS = true;
-		}
-		//docheckping = false;
-		return 500;
+		return 700;
 	}
 	default: PING_FunctionStep = pfsIDLE; break;
 	}
-	//docheckping = false;
 	return 0;
 }
+
+
+
 
 bool XB_PING_DoMessage(TMessageBoard *Am)
 {
@@ -87,44 +80,23 @@ bool XB_PING_DoMessage(TMessageBoard *Am)
 	{
 	case IM_WIFI_CONNECT:
 	{
-		PING_FunctionStep = pfsCheckPingOK;
-	
-		PING_GATEWAY_addr = WiFi.gatewayIP();
-
-		esp_ping_set_target(0, PING_TARGET_IP_ADDRESS, &PING_8888_addr, 4);
-		esp_ping_set_target(1, PING_TARGET_IP_ADDRESS, &PING_GATEWAY_addr, 4);
-
 		PING_8888_IS = false;
-		ping_option_info[0].ping_OK = false;
 		PING_GATEWAY_IS = true;
-		ping_option_info[1].ping_OK = true;
-
-		ping_init();
-
+		PING_FunctionStep = pfsCheckPingOK;
 		return true;
 	}
 	case IM_WIFI_DISCONNECT:
 	{
 		PING_FunctionStep = pfsIDLE;
 		PING_8888_IS = false;
-		ping_option_info[0].ping_OK = false;
 		PING_GATEWAY_IS = false;
-		ping_option_info[1].ping_OK = false;
-		ping_deinit();
-		statusdoping = 0;
-
-
 		return true;
 	}
 	case IM_OTA_UPDATE_STARTED:
 	{
 		PING_FunctionStep = pfsIDLE;
 		PING_8888_IS = false;
-		ping_option_info[0].ping_OK = false;
 		PING_GATEWAY_IS = false;
-		ping_option_info[1].ping_OK = false;
-		ping_deinit();
-		statusdoping = 0;
 		return true;
 	}
 	case IM_GET_TASKNAME_STRING:
@@ -142,7 +114,6 @@ bool XB_PING_DoMessage(TMessageBoard *Am)
 			*(Am->Data.PointerString) = FSS("C.P. 8888:");
 			*(Am->Data.PointerString) += String((int)PING_8888_IS)+ " GW:";
 			*(Am->Data.PointerString) += String((int)PING_GATEWAY_IS);
-			*(Am->Data.PointerString) += " STDP:"+String(statusdoping);
 
 			break;
 		}
