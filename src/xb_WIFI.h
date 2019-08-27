@@ -4,6 +4,7 @@
 #include <xb_board.h>
 #include <WiFiClient.h>
 
+typedef enum { wasDisconnect, wasConnect } TWiFiAPStatus;
 typedef enum { wsDisconnect, wsConnect } TWiFiStatus;
 typedef enum { isDisconnect, isConnect } TInternetStatus;
 
@@ -26,6 +27,7 @@ extern void WIFI_HardDisconnect(void);
 extern TTaskDef XB_WIFI_DefTask;
 extern TWiFiStatus WiFiStatus;
 extern TInternetStatus WIFI_InternetStatus;
+extern TWiFiAPStatus WiFiAPStatus;
 extern uint8_t WIFI_mac[6];
-extern uint32_t CFG_WIFI_StaticIP_IP;
+extern IPAddress CFG_WIFI_StaticIP_IP;
 #endif

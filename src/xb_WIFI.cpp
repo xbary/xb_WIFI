@@ -47,6 +47,7 @@ TWiFiFunction WiFiFunction = wfHandle;
 
 TWiFiStatus WiFiStatus;
 TInternetStatus WIFI_InternetStatus;
+TWiFiAPStatus WiFiAPStatus;
 
 TTaskDef XB_WIFI_DefTask = {1, &WIFI_Setup,&WIFI_DoLoop,&WIFI_DoMessage};
 
@@ -85,19 +86,19 @@ String CFG_WIFI_PSW = WIFI_PASSWORD_DEFAULT;
 #define WIFI_STATICIP_DEFAULT "0.0.0.0"
 #endif
 String CFG_WIFI_StaticIP = WIFI_STATICIP_DEFAULT;
-uint32_t CFG_WIFI_StaticIP_IP;
+IPAddress CFG_WIFI_StaticIP_IP;
 
 #ifndef WIFI_MASK_DEFAULT
 #define WIFI_MASK_DEFAULT "0.0.0.0"
 #endif
 String CFG_WIFI_MASK = WIFI_MASK_DEFAULT;
-uint32_t CFG_WIFI_MASK_IP;
+IPAddress CFG_WIFI_MASK_IP;
 
 #ifndef WIFI_GATEWAY_DEFAULT
 #define WIFI_GATEWAY_DEFAULT "0.0.0.0"
 #endif
 String CFG_WIFI_GATEWAY = WIFI_GATEWAY_DEFAULT;
-uint32_t CFG_WIFI_GATEWAY_IP;
+IPAddress CFG_WIFI_GATEWAY_IP;
 
 
 String CFG_WIFI_AdministratorSSID;
@@ -208,22 +209,19 @@ void WIFI_HardDisconnect(void)
 		
 	if (WiFi.status() == WL_CONNECTED)
 	{
-		board.Log(FSS("Disconnecting WIFI."), true, true);
+		board.Log("Disconnecting WIFI.", true, true);
 		board.Log('.');
 		WiFi.disconnect(true);
 		delay(100);
 	}
 	else
 	{
-		board.Log(FSS("Reseting WIFI."), true, true);
+		board.Log("Reseting WIFI.", true, true);
 	}
 	board.Log('.');
-	WiFi.mode(WIFI_OFF);
 	delay(100);
 	board.Log('.');
-
 	WiFi.persistent(false);
-	board.Log('.');
 	delay(100);
 	WiFi.setAutoConnect(false);
 	board.Log('.');
@@ -232,7 +230,17 @@ void WIFI_HardDisconnect(void)
 	board.Log('.');
 	delay(100);
 	WiFiFunction = wfHandle;
-	board.Log(FSS("OK"));
+
+	WiFi.softAPsetHostname(board.DeviceName.c_str());
+	WiFi.softAP(board.DeviceName.c_str(), "0987654321");
+
+	WiFi.config(IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0));
+	WiFi.enableAP(true);
+	WiFi.mode(WIFI_AP_STA);
+	WiFi.begin("", "", 0, {0},true);
+	delay(1000);
+
+    board.Log("OK");
 }
 
 bool WIFI_CheckDisconnectWiFi(void)
@@ -266,6 +274,8 @@ void WIFI_OTA_Init(void)
 	//ArduinoOTA.setPassword("0987654321");
 
 	board.Log('.');
+
+	
 	#if !defined(_VMICRO_INTELLISENSE)
 	ArduinoOTA.onStart([](void) {
 		board.SendMessage_OTAUpdateStarted();
@@ -286,6 +296,7 @@ void WIFI_OTA_Init(void)
 	board.Log('.');
 	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
 		board.Blink_RX(1);
+		board.Blink_Life();
 		board.Log('.');
 	});
 
@@ -375,7 +386,7 @@ bool WIFI_SaveConfig()
 void WIFI_Setup(void)
 {
 	board.Log(FSS("Init."), true, true);
-
+	//WiFi.disconnect(true);
 	WiFiStatus = wsDisconnect;
 	WIFI_InternetStatus = isDisconnect;
 
@@ -385,17 +396,22 @@ void WIFI_Setup(void)
 	WiFi.macAddress(WIFI_mac);
 
 	{
+		WiFiAPStatus = wasConnect;
+
 		bool lastshowloginfo = XB_WIFI_DefTask.Task->ShowLogInfo;
 		XB_WIFI_DefTask.Task->ShowLogInfo = false;
 		WIFI_HardDisconnect();
 		XB_WIFI_DefTask.Task->ShowLogInfo = lastshowloginfo;
+
+
 	}
 	board.Log('.');
 	WiFiFunction = wfHandle;
 	board.Log(FSS(".OK"));
 
 	WIFI_LoadConfig();
-	
+
+
 	board.AddTask(&XB_PING_DefTask);
 }
 void WIFI_GUI_Repaint()
@@ -592,6 +608,7 @@ uint32_t WIFI_DoLoop(void)
 					}
 				
 					WiFi.scanDelete();
+
 					if (WiFiFunction == wfDoConnectWiFi)
 					{
 						board.Log(FSS("Connecting to "), true, true);
@@ -617,8 +634,9 @@ uint32_t WIFI_DoLoop(void)
 			{IPAddress ip; ip.fromString(CFG_WIFI_GATEWAY); CFG_WIFI_GATEWAY_IP = ip; }
 			PING_GATEWAY_addr = CFG_WIFI_GATEWAY_IP;
 			WiFi.config(CFG_WIFI_StaticIP_IP, CFG_WIFI_GATEWAY_IP, CFG_WIFI_MASK_IP, WIFI_dnsip1, WIFI_dnsip2);
+
 			board.Log('.');
-			WiFi.mode(WIFI_STA);
+			WiFi.mode(WIFI_AP_STA);
 			WiFi.setSleep(false);
 			esp_wifi_set_ps(WIFI_PS_NONE);
 			board.Log('.');
@@ -758,117 +776,115 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 		#ifdef XB_GUI		
 	case IM_MENU:
 		{
-			switch (Am->Data.MenuData.TypeMenuAction)
+			OPEN_MAINMENU()
 			{
-			case tmaOPEN_MAINMENU:
-				{
-					WIFI_menuhandle1 = GUIGADGET_CreateMenu(&XB_WIFI_DefTask, 1);
-					break;
-				}
-			case tmaGET_INIT_MENU:
-				{
-					BEGIN_MENUINIT(1)
-					{
-						DEF_MENUINIT(11, 0, 40, -1, 0,true);
-					}
-					END_MENUINIT()
-					return true;
-				}
-			case tmaGET_CAPTION_MENU_STRING:
-				{
-					BEGIN_MENUCAPTION(1)
-					{
-						DEF_MENUCAPTION("WIFI Configuration");
-					}
-					END_MENUCAPTION()
-					return true;
-				}
-			case tmaGET_ITEM_MENU_STRING:
-				{
-					BEGIN_MENUITEMNAME(1)
-					{
-						DEF_MENUITEMNAME_CHECKED(0, String(FSS("Auto Connect")), CFG_WIFI_AutoConnect);
-						DEF_MENUITEMNAME_CHECKED(1, String(FSS("Debug")), CFG_WIFI_DEBUG);
-						DEF_MENUITEMNAME(2, String(FSS("Disconnect WIFI")));
-						DEF_MENUITEMNAME(3, String(FSS("Show WIFI Status...")));
-						DEF_MENUITEMNAME(4, String(FSS("Load Config")));
-						DEF_MENUITEMNAME(5, String(FSS("Save Config")));
-						DEF_MENUITEMNAME(6, "Set SSID [" + CFG_WIFI_SSID + "]");
-						DEF_MENUITEMNAME(7, String(FSS("Set PASSWORD")));
-						DEF_MENUITEMNAME(8, "Set STA IP      (" + CFG_WIFI_StaticIP + ")");
-						DEF_MENUITEMNAME(9, "Set STA Mask    (" + CFG_WIFI_MASK + ")");
-						DEF_MENUITEMNAME(10, "Set STA GateWay (" + CFG_WIFI_GATEWAY + ")");
-					}
-					END_MENUITEMNAME()
-					return true;
-				}
-			case tmaCLICK_ITEM_MENU:
-				{
-					BEGIN_MENUCLICK(1)
-					{
-						EVENT_MENUCLICK(0)
-						{
-							CFG_WIFI_AutoConnect = !CFG_WIFI_AutoConnect;
+				WIFI_menuhandle1 = GUIGADGET_CreateMenu(&XB_WIFI_DefTask, 1,false,X,Y);
+			}
 
-							if (CFG_WIFI_AutoConnect == false)
-							{
-								WIFI_HardDisconnect();
-							}
+			BEGIN_MENU(1, "WIFI Configuration",WINDOW_POS_X_DEF,WINDOW_POS_Y_DEF,40,MENU_AUTOCOUNT,0,true)
+			{
+				BEGIN_MENUITEM_CHECKED("Auto Connect", taLeft, CFG_WIFI_AutoConnect)
+				{
+					CLICK_MENUITEM()
+					{
+						CFG_WIFI_AutoConnect = !CFG_WIFI_AutoConnect;
 
-						}
-						EVENT_MENUCLICK(1)
-						{
-							CFG_WIFI_DEBUG = !CFG_WIFI_DEBUG;
-						}
-						EVENT_MENUCLICK(2)
+						if (CFG_WIFI_AutoConnect == false)
 						{
 							WIFI_HardDisconnect();
 						}
-						EVENT_MENUCLICK(3)
-						{
-							WIFI_winHandle0 = GUI_WindowCreate(&XB_WIFI_DefTask, 0, false);
-						}
-						EVENT_MENUCLICK(4)
-						{
-							WIFI_LoadConfig();
-						}
-						EVENT_MENUCLICK(5)
-						{
-							WIFI_SaveConfig();
-						}
-						EVENT_MENUCLICK(6)
-						{
-							WIFI_inputdialoghandle0_ssid = GUIGADGET_CreateInputDialog(&XB_WIFI_DefTask, 0);
-						}
-						EVENT_MENUCLICK(7)
-						{
-							WIFI_inputdialoghandle1_psw = GUIGADGET_CreateInputDialog(&XB_WIFI_DefTask, 1);
-						}
-						EVENT_MENUCLICK(8)
-						{
-							WIFI_inputdialoghandle2_sta_ip = GUIGADGET_CreateInputDialog(&XB_WIFI_DefTask, 2);
-						}
-						EVENT_MENUCLICK(9)
-						{
-							WIFI_inputdialoghandle3_mask_ip = GUIGADGET_CreateInputDialog(&XB_WIFI_DefTask, 3);
-						}
-						EVENT_MENUCLICK(10)
-						{
-							WIFI_inputdialoghandle4_gateway_ip = GUIGADGET_CreateInputDialog(&XB_WIFI_DefTask, 4);
-						}
-
 					}
-					END_MENUCLICK()
-					return true;
 				}
+				END_MENUITEM()
+				BEGIN_MENUITEM_CHECKED("Debug", taLeft, CFG_WIFI_DEBUG)
+				{
+					CLICK_MENUITEM()
+					{
+						CFG_WIFI_DEBUG = !CFG_WIFI_DEBUG;
+					}
+				}
+				END_MENUITEM()
+				BEGIN_MENUITEM("Disconnect WIFI", taLeft)
+				{
+					CLICK_MENUITEM()
+					{
+						WIFI_HardDisconnect();
+					}
+				}
+				END_MENUITEM()
+				BEGIN_MENUITEM("Show WIFI Status...", taLeft)
+				{
+					CLICK_MENUITEM()
+					{
+						WIFI_winHandle0 = GUI_WindowCreate(&XB_WIFI_DefTask, 0, false);
+					}
+				}
+				END_MENUITEM()
+				BEGIN_MENUITEM("Load Config", taLeft)
+				{
+					CLICK_MENUITEM()
+					{
+						WIFI_LoadConfig();
+					}
+				}
+				END_MENUITEM()
+				BEGIN_MENUITEM("Save Config", taLeft)
+				{
+					CLICK_MENUITEM()
+					{
+						WIFI_SaveConfig();
+					}
+				}
+				END_MENUITEM()
+				BEGIN_MENUITEM(String("Set SSID [" + CFG_WIFI_SSID + "]"), taLeft)
+				{
+					CLICK_MENUITEM()
+					{
+						WIFI_inputdialoghandle0_ssid = GUIGADGET_CreateInputDialog(&XB_WIFI_DefTask, 0);
+					}
+				}
+				END_MENUITEM()
+				BEGIN_MENUITEM("Set PASSWORD", taLeft)
+				{
+					CLICK_MENUITEM()
+					{
+						WIFI_inputdialoghandle1_psw = GUIGADGET_CreateInputDialog(&XB_WIFI_DefTask, 1);
+					}
+				}
+				END_MENUITEM()
+				BEGIN_MENUITEM(String("Set STA IP      (" + CFG_WIFI_StaticIP + ")"), taLeft)
+				{
+					CLICK_MENUITEM()
+					{
+						WIFI_inputdialoghandle2_sta_ip = GUIGADGET_CreateInputDialog(&XB_WIFI_DefTask, 2);
+					}
+				}
+				END_MENUITEM()
+				BEGIN_MENUITEM(String("Set STA Mask    (" + CFG_WIFI_MASK + ")"), taLeft)
+				{
+					CLICK_MENUITEM()
+					{
+						WIFI_inputdialoghandle3_mask_ip = GUIGADGET_CreateInputDialog(&XB_WIFI_DefTask, 3);
+					}
+				}
+				END_MENUITEM()
+				BEGIN_MENUITEM(String("Set STA GateWay (" + CFG_WIFI_GATEWAY + ")"), taLeft)
+				{
+					CLICK_MENUITEM()
+					{
+						WIFI_inputdialoghandle4_gateway_ip = GUIGADGET_CreateInputDialog(&XB_WIFI_DefTask, 4);
+					}
+				}
+				END_MENUITEM()
 			}
+			END_MENU()
+
+			return true;
 		}
 	case IM_INPUTDIALOG:
 	{
-		
-		
 		BEGIN_INPUTDIALOGINIT(0)
-			DEF_INPUTDIALOGINIT(tivDynArrayChar1, 16, &CFG_WIFI_SSID)
+			DEF_INPUTDIALOGINIT(tivString, 16, &CFG_WIFI_SSID)
 		END_INPUTDIALOGINIT()
 
 		BEGIN_INPUTDIALOGINIT(1)
@@ -935,121 +951,74 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 		return true;
 	}
 	case IM_WINDOW:
+	{
+		BEGIN_WINDOW_DEF(0, "STATUS", WINDOW_POS_LAST_RIGHT_ACTIVE, WINDOW_POS_Y_DEF, 24, 9, WIFI_winHandle0)
 		{
-			switch (Am->Data.WindowData.WindowAction)
+			REPAINT_WINDOW()
 			{
-			case waCreate:
-				{
-					if (Am->Data.WindowData.ID == 0)
-					{
-						Am->Data.WindowData.ActionData.Create.X = -1;
-						Am->Data.WindowData.ActionData.Create.Y = 0;
-						Am->Data.WindowData.ActionData.Create.Width = 24;
-						Am->Data.WindowData.ActionData.Create.Height = 9;
-						return true;
-					}
-					break;
-				}
-			case waDestroy:
-				{
-					if (Am->Data.WindowData.ID == 0)
-					{
-						//WIFI_winHandle0 = NULL;
-					}
-					return true;
-				}
-			case waGetCaptionWindow:
-				{
-					if (Am->Data.WindowData.ID == 0)
-					{
-						*(Am->Data.WindowData.ActionData.GetCaption.PointerString) = FSS("WIFI");
-						return true;
-					}
-					break;
-				}
-			case waRepaint:
-				{
-					if (Am->Data.WindowData.ID == 0)
-					{
-						if (WIFI_winHandle0 != NULL)
-						{
-							WIFI_winHandle0->BeginDraw();
-							WIFI_winHandle0->SetNormalChar();
-							WIFI_winHandle0->SetTextColor(tfcWhite);
+				WH->BeginDraw();
+				WH->SetNormalChar();
+				WH->SetTextColor(tfcWhite);
 
-							int x = 0;
+				int x = 0;
 
-							WIFI_winHandle0->PutStr(x, 0, FSS("WIFI SSID:"));
-							WIFI_winHandle0->PutStr(x, 1, FSS("WIFI IP:"));
-							WIFI_winHandle0->PutStr(x, 2, FSS("STATUS:"));
-							WIFI_winHandle0->PutStr(x, 3, FSS("RSSI:"));
+				WH->PutStr(x, 0, FSS("WIFI SSID:"));
+				WH->PutStr(x, 1, FSS("WIFI IP:"));
+				WH->PutStr(x, 2, FSS("STATUS:"));
+				WH->PutStr(x, 3, FSS("RSSI:"));
 
-							WIFI_winHandle0->PutStr(x, 5, FSS("WIFI:"));
-							WIFI_winHandle0->PutStr(x, 6, FSS("INTERNET:"));
+				WH->PutStr(x, 5, FSS("WIFI:"));
+				WH->PutStr(x, 6, FSS("INTERNET:"));
 
-							WIFI_winHandle0->EndDraw();
-						}
-						return true;
-					}
-					break;
-				}
-			case waRepaintData:
-				{
-					if (Am->Data.WindowData.ID == 0)
-					{
-						if (WIFI_winHandle0 != NULL)
-						{
-							WIFI_winHandle0->BeginDraw();
-							WIFI_winHandle0->SetNormalChar();
-							WIFI_winHandle0->SetBoldChar();
-							WIFI_winHandle0->SetTextColor(tfcYellow);
-
-							int x = 0;
-
-							WIFI_winHandle0->PutStr(x + 10, 0, WiFi.SSID().c_str());
-							WIFI_winHandle0->PutStr(x + 8, 1, WiFi.localIP().toString().c_str());
-
-							switch (WiFi.status())
-							{
-							case WL_NO_SHIELD:		WIFI_winHandle0->PutStr(x + 7, 2, FSS("NO SHIELD      ")); break;
-							case WL_IDLE_STATUS:	WIFI_winHandle0->PutStr(x + 7, 2, FSS("IDLE STATUS    ")); break;
-							case WL_NO_SSID_AVAIL:	WIFI_winHandle0->PutStr(x + 7, 2, FSS("NO SSID AVAIL  ")); break;
-							case WL_SCAN_COMPLETED:	WIFI_winHandle0->PutStr(x + 7, 2, FSS("SCAN COMPLETED ")); break;
-							case WL_CONNECTED:		WIFI_winHandle0->PutStr(x + 7, 2, FSS("CONNECTED      ")); break;
-							case WL_CONNECT_FAILED:	WIFI_winHandle0->PutStr(x + 7, 2, FSS("CONNECT FAILED ")); break;
-							case WL_CONNECTION_LOST:WIFI_winHandle0->PutStr(x + 7, 2, FSS("CONNECTION LOST")); break;
-							case WL_DISCONNECTED:	WIFI_winHandle0->PutStr(x + 7, 2, FSS("DISCONNECTED   ")); break;
-							default:				WIFI_winHandle0->PutStr(x + 7, 2, String(WiFi.status()).c_str()); break;
-							}
-							WIFI_winHandle0->PutStr(x + 5, 3, String(WiFi.RSSI()).c_str());
-							WIFI_winHandle0->PutChar(' ');
-							WIFI_winHandle0->PutChar(' ');
-
-							switch (WiFiStatus)
-							{
-							case wsDisconnect: WIFI_winHandle0->PutStr(x + 5, 5, FSS("Disconnect")); break;
-							case wsConnect:WIFI_winHandle0->PutStr(x + 5, 5, FSS("Connect   ")); break;
-							}
-
-							switch (WIFI_InternetStatus)
-							{
-							case isDisconnect: WIFI_winHandle0->PutStr(x + 9, 6, FSS("Disconnect")); break;
-							case isConnect:WIFI_winHandle0->PutStr(x + 9, 6, FSS("Connect   ")); break;
-							}
-
-							WIFI_winHandle0->EndDraw();
-						}
-						return true;
-					}
-					break;
-				}
-
-
-			default: break;
+				WH->EndDraw();
 			}
-			break;
+			REPAINTDATA_WINDOW()
+			{
+				WH->BeginDraw();
+				WH->SetNormalChar();
+				WH->SetBoldChar();
+				WH->SetTextColor(tfcYellow);
+
+				int x = 0;
+
+				WH->PutStr(x + 10, 0, WiFi.SSID().c_str());
+				WH->PutStr(x + 8, 1, WiFi.localIP().toString().c_str());
+
+				switch (WiFi.status())
+				{
+				case WL_NO_SHIELD:		WH->PutStr(x + 7, 2, FSS("NO SHIELD      ")); break;
+				case WL_IDLE_STATUS:	WH->PutStr(x + 7, 2, FSS("IDLE STATUS    ")); break;
+				case WL_NO_SSID_AVAIL:	WH->PutStr(x + 7, 2, FSS("NO SSID AVAIL  ")); break;
+				case WL_SCAN_COMPLETED:	WH->PutStr(x + 7, 2, FSS("SCAN COMPLETED ")); break;
+				case WL_CONNECTED:		WH->PutStr(x + 7, 2, FSS("CONNECTED      ")); break;
+				case WL_CONNECT_FAILED:	WH->PutStr(x + 7, 2, FSS("CONNECT FAILED ")); break;
+				case WL_CONNECTION_LOST:WH->PutStr(x + 7, 2, FSS("CONNECTION LOST")); break;
+				case WL_DISCONNECTED:	WH->PutStr(x + 7, 2, FSS("DISCONNECTED   ")); break;
+				default:				WH->PutStr(x + 7, 2, String(WiFi.status()).c_str()); break;
+				}
+				WH->PutStr(x + 5, 3, String(WiFi.RSSI()).c_str());
+				WH->PutChar(' ');
+				WH->PutChar(' ');
+
+				switch (WiFiStatus)
+				{
+				case wsDisconnect: WH->PutStr(x + 5, 5, FSS("Disconnect")); break;
+				case wsConnect:WH->PutStr(x + 5, 5, FSS("Connect   ")); break;
+				}
+
+				switch (WIFI_InternetStatus)
+				{
+				case isDisconnect: WH->PutStr(x + 9, 6, FSS("Disconnect")); break;
+				case isConnect:WH->PutStr(x + 9, 6, FSS("Connect   ")); break;
+				}
+				WH->EndDraw();
+			}
 		}
-		#endif
+		END_WINDOW_DEF()
+#endif
+		return true;
+	}
+	default: break;
 	}
 	return false;
 }
