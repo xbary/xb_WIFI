@@ -69,6 +69,9 @@ TGADGETInputDialog *WIFI_inputdialoghandle4_gateway_ip;
 #endif
 
 // Konfiguracja -----------------------------------------------------------------------------------------------------
+#pragma region KONFIGURACJA
+
+
 bool CFG_WIFI_AutoConnect = false;
 bool CFG_WIFI_DEBUG = true;
 
@@ -107,6 +110,79 @@ uint32_t CFG_WIFI_AdministratorStaticIP = 0;
 uint32_t CFG_WIFI_AdministratorMASK = 0;
 uint32_t CFG_WIFI_AdministratorGATEWAY = 0;
 
+void WIFI_PutDot_Debug()
+{
+	if (CFG_WIFI_DEBUG) board.Log('.');
+}
+
+bool WIFI_LoadConfig()
+{
+#ifdef XB_PREFERENCES
+	if (board.PREFERENCES_BeginSection("WIFI"))
+	{
+		CFG_WIFI_DEBUG = board.PREFERENCES_GetBool("DEBUG", CFG_WIFI_DEBUG);
+		
+		CFG_WIFI_AutoConnect = board.PREFERENCES_GetBool("AUTOCONNECT", CFG_WIFI_AutoConnect); 
+		CFG_WIFI_SSID = board.PREFERENCES_GetString("SSID", CFG_WIFI_SSID); 
+		CFG_WIFI_PSW = board.PREFERENCES_GetString("PSW", CFG_WIFI_PSW); 
+		CFG_WIFI_StaticIP = board.PREFERENCES_GetString("StaticIP", CFG_WIFI_StaticIP); 
+		{IPAddress ip; ip.fromString(CFG_WIFI_StaticIP); CFG_WIFI_StaticIP_IP = ip; }
+
+		CFG_WIFI_MASK = board.PREFERENCES_GetString("Mask", CFG_WIFI_MASK); 
+		CFG_WIFI_GATEWAY = board.PREFERENCES_GetString("Gateway", CFG_WIFI_GATEWAY); 
+
+		CFG_WIFI_AdministratorSSID = board.PREFERENCES_GetString("ASSID", CFG_WIFI_AdministratorSSID); 
+		CFG_WIFI_AdministratorPSW = board.PREFERENCES_GetString("APSW", CFG_WIFI_AdministratorPSW); 
+		CFG_WIFI_AdministratorStaticIP = board.PREFERENCES_GetUINT32("AStaticIP", CFG_WIFI_AdministratorStaticIP); 
+		CFG_WIFI_AdministratorMASK = board.PREFERENCES_GetUINT32("AMask", CFG_WIFI_AdministratorMASK); 
+		CFG_WIFI_AdministratorGATEWAY = board.PREFERENCES_GetUINT32("AGateway", CFG_WIFI_AdministratorGATEWAY); 
+	}
+	else
+	{
+		return false;
+	}
+	board.PREFERENCES_EndSection();
+	
+	return true;
+#else
+	return false;
+#endif
+}
+
+bool WIFI_SaveConfig()
+{
+#ifdef XB_PREFERENCES
+	if (board.PREFERENCES_BeginSection("WIFI"))
+	{
+		board.PREFERENCES_PutBool("AUTOCONNECT", CFG_WIFI_AutoConnect); 
+		board.PREFERENCES_PutBool("DEBUG", CFG_WIFI_DEBUG); 
+		board.PREFERENCES_PutString("SSID", CFG_WIFI_SSID); 
+		board.PREFERENCES_PutString("PSW", CFG_WIFI_PSW); 
+		board.PREFERENCES_PutString("StaticIP", CFG_WIFI_StaticIP); 
+		board.PREFERENCES_PutString("Mask", CFG_WIFI_MASK); 
+		board.PREFERENCES_PutString("Gateway", CFG_WIFI_GATEWAY); 
+
+		board.PREFERENCES_PutString("ASSID", CFG_WIFI_AdministratorSSID); 
+		board.PREFERENCES_PutString("APSW", CFG_WIFI_AdministratorPSW); 
+		board.PREFERENCES_PutUINT32("AStaticIP", CFG_WIFI_AdministratorStaticIP); 
+		board.PREFERENCES_PutUINT32("AMask", CFG_WIFI_AdministratorMASK); 
+		board.PREFERENCES_PutUINT32("AGateway", CFG_WIFI_AdministratorGATEWAY); 
+	}
+	else
+	{
+		return false;
+	}
+	board.PREFERENCES_EndSection();
+	return true;
+#else
+	return false;
+#endif
+}
+
+
+
+#pragma endregion
+
 //-------------------------------------------------------------------------------------------------------------
 #if defined(wificlient_h) || defined(_WIFICLIENT_H_)
 
@@ -141,6 +217,10 @@ void TCPClientDestroy(WiFiClient **Awificlient)
 	}
 }
 #endif
+
+#pragma region FUNKCJE_STEROWANIA
+
+
 
 void WIFI_DoAllTaskWifiDisconnect(void)
 {
@@ -317,82 +397,22 @@ void WIFI_OTA_Init(void)
 }
 #endif
 
-void WIFI_PutDot_Debug()
-{
-	if (CFG_WIFI_DEBUG) board.Log('.');		
-}
+#pragma endregion
 
-bool WIFI_LoadConfig()
-{
-#ifdef XB_PREFERENCES
-	board.PREFERENCES_BeginSection("WIFI");
-	{
-		CFG_WIFI_DEBUG = board.PREFERENCES_GetBool("DEBUG", CFG_WIFI_DEBUG);  
-		if (CFG_WIFI_DEBUG) board.Log(FSS("Load config"), true, true);
-		CFG_WIFI_AutoConnect = board.PREFERENCES_GetBool("AUTOCONNECT", CFG_WIFI_AutoConnect); WIFI_PutDot_Debug();
-		CFG_WIFI_SSID = board.PREFERENCES_GetString("SSID", CFG_WIFI_SSID); WIFI_PutDot_Debug();
-		CFG_WIFI_PSW = board.PREFERENCES_GetString("PSW", CFG_WIFI_PSW); WIFI_PutDot_Debug();
-		CFG_WIFI_StaticIP = board.PREFERENCES_GetString("StaticIP", CFG_WIFI_StaticIP); WIFI_PutDot_Debug();
-		{IPAddress ip; ip.fromString(CFG_WIFI_StaticIP); CFG_WIFI_StaticIP_IP = ip; }
-
-		CFG_WIFI_MASK = board.PREFERENCES_GetString("Mask", CFG_WIFI_MASK); WIFI_PutDot_Debug();
-		CFG_WIFI_GATEWAY = board.PREFERENCES_GetString("Gateway", CFG_WIFI_GATEWAY); WIFI_PutDot_Debug();
-
-		CFG_WIFI_AdministratorSSID = board.PREFERENCES_GetString("ASSID", CFG_WIFI_AdministratorSSID); WIFI_PutDot_Debug();
-		CFG_WIFI_AdministratorPSW = board.PREFERENCES_GetString("APSW", CFG_WIFI_AdministratorPSW); WIFI_PutDot_Debug();
-		CFG_WIFI_AdministratorStaticIP = board.PREFERENCES_GetUINT32("AStaticIP", CFG_WIFI_AdministratorStaticIP); WIFI_PutDot_Debug();
-		CFG_WIFI_AdministratorMASK = board.PREFERENCES_GetUINT32("AMask", CFG_WIFI_AdministratorMASK); WIFI_PutDot_Debug();
-		CFG_WIFI_AdministratorGATEWAY = board.PREFERENCES_GetUINT32("AGateway", CFG_WIFI_AdministratorGATEWAY); WIFI_PutDot_Debug();
-	}
-	board.PREFERENCES_EndSection();
-	if (CFG_WIFI_DEBUG) board.Log(FSS("OK"));
-	return true;
-#else
-	return false;
-#endif
-}
-
-bool WIFI_SaveConfig()
-{
-#ifdef XB_PREFERENCES
-	board.PREFERENCES_BeginSection("WIFI");
-	{
-
-		if (CFG_WIFI_DEBUG) board.Log(FSS("Save config"), true, true);
-
-		board.PREFERENCES_PutBool("AUTOCONNECT", CFG_WIFI_AutoConnect); WIFI_PutDot_Debug();
-		board.PREFERENCES_PutBool("DEBUG", CFG_WIFI_DEBUG); WIFI_PutDot_Debug();
-		board.PREFERENCES_PutString("SSID", CFG_WIFI_SSID); WIFI_PutDot_Debug(); 
-		board.PREFERENCES_PutString("PSW", CFG_WIFI_PSW); WIFI_PutDot_Debug(); 
-		board.PREFERENCES_PutString("StaticIP", CFG_WIFI_StaticIP); WIFI_PutDot_Debug();
-		board.PREFERENCES_PutString("Mask", CFG_WIFI_MASK); WIFI_PutDot_Debug();
-		board.PREFERENCES_PutString("Gateway", CFG_WIFI_GATEWAY); WIFI_PutDot_Debug();
-
-		board.PREFERENCES_PutString("ASSID", CFG_WIFI_AdministratorSSID); WIFI_PutDot_Debug();
-		board.PREFERENCES_PutString("APSW", CFG_WIFI_AdministratorPSW); WIFI_PutDot_Debug();
-		board.PREFERENCES_PutUINT32("AStaticIP", CFG_WIFI_AdministratorStaticIP); WIFI_PutDot_Debug();
-		board.PREFERENCES_PutUINT32("AMask", CFG_WIFI_AdministratorMASK); WIFI_PutDot_Debug();
-		board.PREFERENCES_PutUINT32("AGateway", CFG_WIFI_AdministratorGATEWAY); WIFI_PutDot_Debug();
-	}
-	board.PREFERENCES_EndSection();
-
-	if (CFG_WIFI_DEBUG) board.Log(FSS("OK"));
-	return true;
-#else
-	return false;
-#endif
-}
 
 void WIFI_Setup(void)
 {
-	board.Log(FSS("Init."), true, true);
-	//WiFi.disconnect(true);
+	board.LoadConfiguration(&XB_WIFI_DefTask);
+
+	board.Log("Init.", true, true);
+
 	WiFiStatus = wsDisconnect;
 	WIFI_InternetStatus = isDisconnect;
 
 	#ifdef ESP8266 
 	wifi_set_sleep_type(NONE_SLEEP_T);
 	#endif
+
 	WiFi.macAddress(WIFI_mac);
 
 	{
@@ -402,15 +422,11 @@ void WIFI_Setup(void)
 		XB_WIFI_DefTask.Task->ShowLogInfo = false;
 		WIFI_HardDisconnect();
 		XB_WIFI_DefTask.Task->ShowLogInfo = lastshowloginfo;
-
-
 	}
+
 	board.Log('.');
 	WiFiFunction = wfHandle;
-	board.Log(FSS(".OK"));
-
-	WIFI_LoadConfig();
-
+	board.Log(".OK");
 
 	board.AddTask(&XB_PING_DefTask);
 }
@@ -628,11 +644,11 @@ uint32_t WIFI_DoLoop(void)
 			WiFi.hostname(board.DeviceName.c_str());
 			#endif
 			board.Log('.');
-			PING_8888_addr = WIFI_dnsip2;
+			//PING_8888_addr = WIFI_dnsip2;
 			{IPAddress ip; ip.fromString(CFG_WIFI_StaticIP); CFG_WIFI_StaticIP_IP = ip; }
 			{IPAddress ip; ip.fromString(CFG_WIFI_MASK); CFG_WIFI_MASK_IP = ip; }
 			{IPAddress ip; ip.fromString(CFG_WIFI_GATEWAY); CFG_WIFI_GATEWAY_IP = ip; }
-			PING_GATEWAY_addr = CFG_WIFI_GATEWAY_IP;
+			//PING_GATEWAY_addr = CFG_WIFI_GATEWAY_IP;
 			WiFi.config(CFG_WIFI_StaticIP_IP, CFG_WIFI_GATEWAY_IP, CFG_WIFI_MASK_IP, WIFI_dnsip1, WIFI_dnsip2);
 
 			board.Log('.');
@@ -717,9 +733,18 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 {
 	switch (Am->IDMessage)
 	{
+	case IM_LOAD_CONFIGURATION:
+	{
+		return WIFI_LoadConfig();
+	}
+	case IM_SAVE_CONFIGURATION:
+	{
+		return WIFI_SaveConfig();
+	}
 	case IM_FREEPTR:
 	{
 #ifdef XB_GUI
+		
 		if (Am->Data.FreePTR == WIFI_winHandle0) WIFI_winHandle0 = NULL;
 		if (Am->Data.FreePTR == WIFI_menuhandle1) WIFI_menuhandle1 = NULL;
 		if (Am->Data.FreePTR == WIFI_inputdialoghandle0_ssid) WIFI_inputdialoghandle0_ssid = NULL;
@@ -768,11 +793,11 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 			WIFI_GUI_Repaint();
 			break;
 		}
-	case IM_CONFIG_SAVE:
+/*	case IM_CONFIG_SAVE:
 		{
 			WIFI_SaveConfig();
 			return true;
-		}
+		}*/
 		#ifdef XB_GUI		
 	case IM_MENU:
 		{
@@ -820,22 +845,7 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 					}
 				}
 				END_MENUITEM()
-				BEGIN_MENUITEM("Load Config", taLeft)
-				{
-					CLICK_MENUITEM()
-					{
-						WIFI_LoadConfig();
-					}
-				}
-				END_MENUITEM()
-				BEGIN_MENUITEM("Save Config", taLeft)
-				{
-					CLICK_MENUITEM()
-					{
-						WIFI_SaveConfig();
-					}
-				}
-				END_MENUITEM()
+				CONFIGURATION_MENUITEMS()
 				BEGIN_MENUITEM(String("Set SSID [" + CFG_WIFI_SSID + "]"), taLeft)
 				{
 					CLICK_MENUITEM()
