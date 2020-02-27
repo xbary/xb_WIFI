@@ -1,6 +1,5 @@
 #include <xb_board.h>
 #include <xb_WIFI.h>
-#include <xb_PING.h>
 
 #ifdef ESP32
 #include <ESPmDNS.h>
@@ -27,6 +26,10 @@ extern "C" {
 
 #endif
 
+#ifdef XB_PING
+#include <xb_PING.h>
+#endif
+
 #ifdef WIFI_ARDUINO_OTA
 #include <ArduinoOTA.h>
 #endif
@@ -48,6 +51,12 @@ TWiFiFunction WiFiFunction = wfHandle;
 TWiFiStatus WiFiStatus;
 TInternetStatus WIFI_InternetStatus;
 TWiFiAPStatus WiFiAPStatus;
+
+#ifndef XB_PING
+bool  PING_GATEWAY_IS = true;
+bool  PING_8888_IS = true;
+#endif
+
 
 TTaskDef XB_WIFI_DefTask = {1, &WIFI_Setup,&WIFI_DoLoop,&WIFI_DoMessage};
 
@@ -311,14 +320,15 @@ void WIFI_HardDisconnect(void)
 	delay(100);
 	WiFiFunction = wfHandle;
 
-	WiFi.softAPsetHostname(board.DeviceName.c_str());
-	WiFi.softAP(board.DeviceName.c_str(), "0987654321");
+//	WiFi.softAPsetHostname(board.DeviceName.c_str());
+//	WiFi.softAP(board.DeviceName.c_str(), "0987654321");
 
-	WiFi.config(IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0));
-	WiFi.enableAP(true);
-	WiFi.mode(WIFI_AP_STA);
-	WiFi.begin("", "", 0, {0},true);
-	delay(1000);
+	//WiFi.config(IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0));
+	//WiFi.enableAP(true);
+	WiFi.mode(WIFI_STA);
+	WiFi.enableSTA(true);
+	//WiFi.begin("", "", 0, {0},true);
+	//delay(1000);
 
     board.Log("OK");
 }
@@ -402,6 +412,8 @@ void WIFI_OTA_Init(void)
 
 void WIFI_Setup(void)
 {
+	WiFi.mode(WIFI_OFF);
+
 	board.LoadConfiguration(&XB_WIFI_DefTask);
 
 	board.Log("Init.", true, true);
@@ -416,7 +428,7 @@ void WIFI_Setup(void)
 	WiFi.macAddress(WIFI_mac);
 
 	{
-		WiFiAPStatus = wasConnect;
+		//WiFiAPStatus = wasConnect;
 
 		bool lastshowloginfo = XB_WIFI_DefTask.Task->ShowLogInfo;
 		XB_WIFI_DefTask.Task->ShowLogInfo = false;
@@ -428,7 +440,7 @@ void WIFI_Setup(void)
 	WiFiFunction = wfHandle;
 	board.Log(".OK");
 
-	board.AddTask(&XB_PING_DefTask);
+	//board.AddTask(&XB_PING_DefTask);
 }
 void WIFI_GUI_Repaint()
 {
@@ -644,15 +656,23 @@ uint32_t WIFI_DoLoop(void)
 			WiFi.hostname(board.DeviceName.c_str());
 			#endif
 			board.Log('.');
-			//PING_8888_addr = WIFI_dnsip2;
 			{IPAddress ip; ip.fromString(CFG_WIFI_StaticIP); CFG_WIFI_StaticIP_IP = ip; }
 			{IPAddress ip; ip.fromString(CFG_WIFI_MASK); CFG_WIFI_MASK_IP = ip; }
 			{IPAddress ip; ip.fromString(CFG_WIFI_GATEWAY); CFG_WIFI_GATEWAY_IP = ip; }
 			//PING_GATEWAY_addr = CFG_WIFI_GATEWAY_IP;
+			/*
+			board.Log(String("    SSID: " + CFG_WIFI_SSID).c_str(), true, true);
+			board.Log(String("     psw: " + CFG_WIFI_PSW).c_str(), true, true);
+			board.Log(String("StaticIP: "+CFG_WIFI_StaticIP_IP.toString()).c_str(), true, true);
+			board.Log(String(" Gateway: " + CFG_WIFI_GATEWAY_IP.toString()).c_str(), true, true);
+			board.Log(String("    Mask: " + CFG_WIFI_MASK_IP.toString()).c_str(), true, true);
+			board.Log(String("    DNS1: " + WIFI_dnsip1.toString()).c_str(), true, true);
+			board.Log(String("    DNS2: " + WIFI_dnsip2.toString()).c_str(), true, true);
+			*/
 			WiFi.config(CFG_WIFI_StaticIP_IP, CFG_WIFI_GATEWAY_IP, CFG_WIFI_MASK_IP, WIFI_dnsip1, WIFI_dnsip2);
 
 			board.Log('.');
-			WiFi.mode(WIFI_AP_STA);
+			WiFi.mode(WIFI_STA);
 			WiFi.setSleep(false);
 			esp_wifi_set_ps(WIFI_PS_NONE);
 			board.Log('.');
@@ -898,7 +918,7 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 		END_INPUTDIALOGINIT()
 
 		BEGIN_INPUTDIALOGINIT(1)
-			DEF_INPUTDIALOGINIT(tivDynArrayChar1, 16, &CFG_WIFI_PSW)
+			DEF_INPUTDIALOGINIT(tivString, 16, &CFG_WIFI_PSW)
 		END_INPUTDIALOGINIT()
 
 		BEGIN_INPUTDIALOGINIT(2)
