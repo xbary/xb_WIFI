@@ -294,41 +294,49 @@ void WIFI_HardDisconnect(void)
 	WIFI_SetDisconnectInternet();
 	WIFI_SetDisconnectWiFi();
 	WiFi.scanDelete();
-	delay(100);
-		
+	board.Log('.');
+	delay(10);
+
 	if (WiFi.status() == WL_CONNECTED)
 	{
 		board.Log("Disconnecting WIFI.", true, true);
+		WiFi.disconnect();
 		board.Log('.');
-		WiFi.disconnect(true);
-		delay(100);
+		delay(10);
 	}
 	else
 	{
 		board.Log("Reseting WIFI.", true, true);
+		WiFi.disconnect();
+		board.Log('.');
+		delay(10);
 	}
-	board.Log('.');
-	delay(100);
+
 	board.Log('.');
 	WiFi.persistent(false);
-	delay(100);
+	delay(10);
 	WiFi.setAutoConnect(false);
 	board.Log('.');
-	delay(100);
+	delay(10);
 	WiFi.setAutoReconnect(false);
 	board.Log('.');
-	delay(100);
-	WiFiFunction = wfHandle;
+	delay(10);
 
 //	WiFi.softAPsetHostname(board.DeviceName.c_str());
 //	WiFi.softAP(board.DeviceName.c_str(), "0987654321");
+//  WiFi.enableAP(true);
 
-	//WiFi.config(IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0));
-	//WiFi.enableAP(true);
-	WiFi.mode(WIFI_STA);
+	board.Log('.');
+	delay(100);
 	WiFi.enableSTA(true);
-	//WiFi.begin("", "", 0, {0},true);
-	//delay(1000);
+	board.Log('.');
+	delay(100);
+	WiFi.config(IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0));
+	board.Log('.');
+	delay(100);
+	WiFi.begin("", "", 0, NULL, false);
+
+	WiFiFunction = wfHandle;
 
     board.Log("OK");
 }
@@ -355,7 +363,7 @@ bool WIFI_CheckDisconnectWiFi(void)
 #ifdef WIFI_ARDUINO_OTA
 void WIFI_OTA_Init(void)
 {
-	board.Log(FSS("ArduinoOTA Init"), true, true);
+	board.Log(("ArduinoOTA Init"), true, true);
 	board.Log('.');
 	ArduinoOTA.setPort(8266);
 	board.Log('.');
@@ -392,18 +400,18 @@ void WIFI_OTA_Init(void)
 
 	board.Log('.');
 	ArduinoOTA.onError([](ota_error_t error) {
-		Serial.printf(FSS("Error[%u]: "), error);
-		if (error == OTA_AUTH_ERROR) Serial.println(FSS("Auth Failed"));
-		else if (error == OTA_BEGIN_ERROR) Serial.println(FSS("Begin Failed"));
-		else if (error == OTA_CONNECT_ERROR) Serial.println(FSS("Connect Failed"));
-		else if (error == OTA_RECEIVE_ERROR) Serial.println(FSS("Receive Failed"));
-		else if (error == OTA_END_ERROR) Serial.println(FSS("End Failed"));
+		Serial.printf(("Error[%u]: "), error);
+		if (error == OTA_AUTH_ERROR) Serial.println(("Auth Failed"));
+		else if (error == OTA_BEGIN_ERROR) Serial.println(("Begin Failed"));
+		else if (error == OTA_CONNECT_ERROR) Serial.println(("Connect Failed"));
+		else if (error == OTA_RECEIVE_ERROR) Serial.println(("Receive Failed"));
+		else if (error == OTA_END_ERROR) Serial.println(("End Failed"));
 	});
 	#endif
 	board.Log('.');
 	ArduinoOTA.begin();
 	board.Log('.');
-	board.Log(FSS("OK"));
+	board.Log(("OK"));
 }
 #endif
 
@@ -412,14 +420,13 @@ void WIFI_OTA_Init(void)
 
 void WIFI_Setup(void)
 {
-	WiFi.mode(WIFI_OFF);
-
 	board.LoadConfiguration(&XB_WIFI_DefTask);
 
 	board.Log("Init.", true, true);
 
 	WiFiStatus = wsDisconnect;
 	WIFI_InternetStatus = isDisconnect;
+	WiFiAPStatus = wasConnect;
 
 	#ifdef ESP8266 
 	wifi_set_sleep_type(NONE_SLEEP_T);
@@ -427,21 +434,13 @@ void WIFI_Setup(void)
 
 	WiFi.macAddress(WIFI_mac);
 
-	{
-		//WiFiAPStatus = wasConnect;
-
-		bool lastshowloginfo = XB_WIFI_DefTask.Task->ShowLogInfo;
-		XB_WIFI_DefTask.Task->ShowLogInfo = false;
-		WIFI_HardDisconnect();
-		XB_WIFI_DefTask.Task->ShowLogInfo = lastshowloginfo;
-	}
-
 	board.Log('.');
 	WiFiFunction = wfHandle;
 	board.Log(".OK");
-
-	//board.AddTask(&XB_PING_DefTask);
+	
+	WIFI_HardDisconnect();
 }
+
 void WIFI_GUI_Repaint()
 {
 #ifdef XB_GUI
@@ -468,7 +467,7 @@ uint32_t WIFI_DoLoop(void)
 
 					if (PING_GATEWAY_IS == false)
 					{
-						board.Log(FSS("Router ping error."), true, true);
+						board.Log(("Router ping error."), true, true);
 						WIFI_HardDisconnect();
 						WIFI_GUI_Repaint();
 					}
@@ -478,7 +477,7 @@ uint32_t WIFI_DoLoop(void)
 					{
 						if (!PING_8888_IS)
 						{
-							board.Log(FSS("Internet ping error."), true, true);
+							board.Log(("Internet ping error."), true, true);
 							WiFiFunction = wfCheckInternetAvaliable;
 							WIFI_SetDisconnectInternet();
 							WIFI_GUI_Repaint();
@@ -560,13 +559,13 @@ uint32_t WIFI_DoLoop(void)
 
 				if (n == 0)
 				{
-					board.Log(FSS("No network found."), true, true);
+					board.Log(("No network found."), true, true);
 				}
 				else
 				{
 					WiFiFunction = wfDoWaitFindtWiFi;
 					WIFI_GUI_Repaint();
-					board.Log(FSS("Scan networks."), true, true);
+					board.Log(("Scan networks."), true, true);
 
 				}
 
@@ -597,28 +596,29 @@ uint32_t WIFI_DoLoop(void)
 			{
 				if (n == WIFI_SCAN_FAILED)
 				{
-					board.Log(FSS("Scan network failed."), true, true);
+					board.Log(("Scan network failed."), true, true);
 					WiFiFunction = wfDoFindtWiFi;
 					WIFI_GUI_Repaint();
 				}
 				else if (n == 0)
 				{
-					board.Log(FSS("OK"));
-					board.Log(FSS("No network found."), true, true);
+					board.Log(("OK"));
+					board.Log(("No network found."), true, true);
 					WiFiFunction = wfDoFindtWiFi;
 					WIFI_GUI_Repaint();
 				}
 				else
 				{
 					WiFiFunction = wfDoFindtWiFi;
-					board.Log(FSS("OK"));
-					board.Log(FSS("List WIFI:"), true, true);
+					board.Log(("OK"));
+					board.Log(("List WIFI:"), true, true);
+					
 					for (int i = 0; i < n; ++i)
 					{
 						board.Log(String(i + 1).c_str(), true, true);
-						board.Log(FSS(": "));
+						board.Log((": "));
 						board.Log(WiFi.SSID(i).c_str());
-						board.Log(FSS(" ("));
+						board.Log((" ("));
 						board.Log(String(WiFi.RSSI(i)).c_str());
 						board.Log(')');
 						#ifdef ESP32
@@ -628,7 +628,7 @@ uint32_t WIFI_DoLoop(void)
 						#endif
 						if (WiFi.SSID(i) == String(CFG_WIFI_SSID))
 						{
-							board.Log(FSS(" <<< Connect"));
+							board.Log((" <<< Connect"));
 							WiFiFunction = wfDoConnectWiFi;
 							WIFI_GUI_Repaint();
 						}
@@ -639,7 +639,7 @@ uint32_t WIFI_DoLoop(void)
 
 					if (WiFiFunction == wfDoConnectWiFi)
 					{
-						board.Log(FSS("Connecting to "), true, true);
+						board.Log(("Connecting to "), true, true);
 						board.Log(CFG_WIFI_SSID.c_str());
 						board.Log('.');
 					}
@@ -688,7 +688,7 @@ uint32_t WIFI_DoLoop(void)
 			if ((WiFi.status() == WL_CONNECTED))
 			{
 				RESET_WAITMS(hhh4);
-				board.Log(FSS("OK"));
+				board.Log(("OK"));
 				WIFI_SetConnectWiFi();
 				WiFiFunction = wfHandle;
 				WIFI_GUI_Repaint();
@@ -704,8 +704,8 @@ uint32_t WIFI_DoLoop(void)
 				BEGIN_WAITMS(hhh4, 30000)
 				{
 					RESET_WAITMS(hhh4);
-					board.Log(FSS("TIME OUT"));
-					board.Log(FSS("Refind network."), true, true);
+					board.Log(("TIME OUT"));
+					board.Log(("Refind network."), true, true);
 					WIFI_HardDisconnect();
 					//				WIFI_SetDisconnectInternet();
 					//				WIFI_SetDisconnectWiFi();
@@ -777,7 +777,7 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 	}
 	case IM_GET_TASKNAME_STRING:
 		{
-			*(Am->Data.PointerString) = FSS("WIFI");
+			*(Am->Data.PointerString) = ("WIFI");
 			return true;
 		}
 	case IM_GET_TASKSTATUS_STRING:
@@ -785,14 +785,14 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 			switch (WiFiFunction)
 			{
 
-			case wfCheckInternetAvaliable: *(Am->Data.PointerString) = FSS("wfCheckInternetAvaliable"); break;
-			case wfDoConnectWiFi:          *(Am->Data.PointerString) = FSS("wfDoConnectWiFi         "); break;
-			case wfDoFindtWiFi:            *(Am->Data.PointerString) = FSS("wfDoFindtWiFi           "); break;
-			case wfDoWaitFindtWiFi:        *(Am->Data.PointerString) = FSS("wfDoWaitFindtWiFi       "); break;
-			case wfHandle:                 *(Am->Data.PointerString) = FSS("wfHandle                "); break;
-			case wfWaitConnectWiFi:        *(Am->Data.PointerString) = FSS("wfWaitConnectWiFi       "); break;
-			case wfWaitForPingGateway:     *(Am->Data.PointerString) = FSS("wfWaitForPingGateway    "); break;
-			default:                       *(Am->Data.PointerString) = FSS("..."); break;
+			case wfCheckInternetAvaliable: *(Am->Data.PointerString) = ("wfCheckInternetAvaliable"); break;
+			case wfDoConnectWiFi:          *(Am->Data.PointerString) = ("wfDoConnectWiFi         "); break;
+			case wfDoFindtWiFi:            *(Am->Data.PointerString) = ("wfDoFindtWiFi           "); break;
+			case wfDoWaitFindtWiFi:        *(Am->Data.PointerString) = ("wfDoWaitFindtWiFi       "); break;
+			case wfHandle:                 *(Am->Data.PointerString) = ("wfHandle                "); break;
+			case wfWaitConnectWiFi:        *(Am->Data.PointerString) = ("wfWaitConnectWiFi       "); break;
+			case wfWaitForPingGateway:     *(Am->Data.PointerString) = ("wfWaitForPingGateway    "); break;
+			default:                       *(Am->Data.PointerString) = ("..."); break;
 			}
 			return true;
 		}
@@ -992,13 +992,13 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 
 				int x = 0;
 
-				WH->PutStr(x, 0, FSS("WIFI SSID:"));
-				WH->PutStr(x, 1, FSS("WIFI IP:"));
-				WH->PutStr(x, 2, FSS("STATUS:"));
-				WH->PutStr(x, 3, FSS("RSSI:"));
+				WH->PutStr(x, 0, ("WIFI SSID:"));
+				WH->PutStr(x, 1, ("WIFI IP:"));
+				WH->PutStr(x, 2, ("STATUS:"));
+				WH->PutStr(x, 3, ("RSSI:"));
 
-				WH->PutStr(x, 5, FSS("WIFI:"));
-				WH->PutStr(x, 6, FSS("INTERNET:"));
+				WH->PutStr(x, 5, ("WIFI:"));
+				WH->PutStr(x, 6, ("INTERNET:"));
 
 				WH->EndDraw();
 			}
@@ -1016,14 +1016,14 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 
 				switch (WiFi.status())
 				{
-				case WL_NO_SHIELD:		WH->PutStr(x + 7, 2, FSS("NO SHIELD      ")); break;
-				case WL_IDLE_STATUS:	WH->PutStr(x + 7, 2, FSS("IDLE STATUS    ")); break;
-				case WL_NO_SSID_AVAIL:	WH->PutStr(x + 7, 2, FSS("NO SSID AVAIL  ")); break;
-				case WL_SCAN_COMPLETED:	WH->PutStr(x + 7, 2, FSS("SCAN COMPLETED ")); break;
-				case WL_CONNECTED:		WH->PutStr(x + 7, 2, FSS("CONNECTED      ")); break;
-				case WL_CONNECT_FAILED:	WH->PutStr(x + 7, 2, FSS("CONNECT FAILED ")); break;
-				case WL_CONNECTION_LOST:WH->PutStr(x + 7, 2, FSS("CONNECTION LOST")); break;
-				case WL_DISCONNECTED:	WH->PutStr(x + 7, 2, FSS("DISCONNECTED   ")); break;
+				case WL_NO_SHIELD:		WH->PutStr(x + 7, 2, ("NO SHIELD      ")); break;
+				case WL_IDLE_STATUS:	WH->PutStr(x + 7, 2, ("IDLE STATUS    ")); break;
+				case WL_NO_SSID_AVAIL:	WH->PutStr(x + 7, 2, ("NO SSID AVAIL  ")); break;
+				case WL_SCAN_COMPLETED:	WH->PutStr(x + 7, 2, ("SCAN COMPLETED ")); break;
+				case WL_CONNECTED:		WH->PutStr(x + 7, 2, ("CONNECTED      ")); break;
+				case WL_CONNECT_FAILED:	WH->PutStr(x + 7, 2, ("CONNECT FAILED ")); break;
+				case WL_CONNECTION_LOST:WH->PutStr(x + 7, 2, ("CONNECTION LOST")); break;
+				case WL_DISCONNECTED:	WH->PutStr(x + 7, 2, ("DISCONNECTED   ")); break;
 				default:				WH->PutStr(x + 7, 2, String(WiFi.status()).c_str()); break;
 				}
 				WH->PutStr(x + 5, 3, String(WiFi.RSSI()).c_str());
@@ -1032,14 +1032,14 @@ bool WIFI_DoMessage(TMessageBoard *Am)
 
 				switch (WiFiStatus)
 				{
-				case wsDisconnect: WH->PutStr(x + 5, 5, FSS("Disconnect")); break;
-				case wsConnect:WH->PutStr(x + 5, 5, FSS("Connect   ")); break;
+				case wsDisconnect: WH->PutStr(x + 5, 5, ("Disconnect")); break;
+				case wsConnect:WH->PutStr(x + 5, 5, ("Connect   ")); break;
 				}
 
 				switch (WIFI_InternetStatus)
 				{
-				case isDisconnect: WH->PutStr(x + 9, 6, FSS("Disconnect")); break;
-				case isConnect:WH->PutStr(x + 9, 6, FSS("Connect   ")); break;
+				case isDisconnect: WH->PutStr(x + 9, 6, ("Disconnect")); break;
+				case isConnect:WH->PutStr(x + 9, 6, ("Connect   ")); break;
 				}
 				WH->EndDraw();
 			}
