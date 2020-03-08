@@ -22,9 +22,6 @@ void WIFI_SetDisconnectWiFi(void);
 void WIFI_SetDisconnectInternet(void);
 bool WIFI_CheckDisconnectWiFi(void);
 
-void WIFI_Setup(void);
-uint32_t WIFI_DoLoop(void);
-bool WIFI_DoMessage(TMessageBoard *Am);
 
 extern void WIFI_HardDisconnect(void);
 extern TTaskDef XB_WIFI_DefTask;

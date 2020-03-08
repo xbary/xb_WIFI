@@ -14,11 +14,9 @@
     <ProjectCapability Include="SourceItemsFromImports" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="$(MSBuildThisFileDirectory)src\xb_PING.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)src\xb_WIFI.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="$(MSBuildThisFileDirectory)src\xb_PING.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)src\xb_WIFI.h" />
   </ItemGroup>
 </Project>
