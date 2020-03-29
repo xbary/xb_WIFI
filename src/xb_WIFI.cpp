@@ -83,13 +83,18 @@ TGADGETInputDialog* WIFI_inputdialoghandle10_channelap;
 #pragma region KONFIGURACJA
 
 
+#ifdef WIFI_SSID_DEFAULT
+bool CFG_WIFI_UseStation = true;
+#else
 bool CFG_WIFI_UseStation = false;
+#endif
 bool CFG_WIFI_UseAp = true;
 bool CFG_WIFI_HideAp = false;
 uint8_t CFG_WIFI_ChannelAp=11;
 bool CFG_WIFI_DEBUG = false;
 #ifdef XB_OTA
-bool CFG_WIFI_USEOTA = false;
+bool CFG_WIFI_USEOTA = true;
+
 String CFG_WIFI_PSWOTA;
 #ifndef WIFI_PORTOTA_DEFAULT
 #define WIFI_PORTOTA_DEFAULT 8266
@@ -447,7 +452,7 @@ void WIFI_OTA_Init(void)
 		board.Log('.');
 
 
-#//if !defined(_VMICRO_INTELLISENSE)
+//#if !defined(_VMICRO_INTELLISENSE)
 		ArduinoOTA.onStart([](void) {
 			board.SendMessage_OTAUpdateStarted();
 			String type;
@@ -533,7 +538,7 @@ uint32_t WIFI_DoLoop(void)
 	{
 	case wfHandle: // Normalna praca 
 		{
-			if (CFG_WIFI_UseStation == false) return 1000;
+			if (CFG_WIFI_UseStation == false) return 0;
 
 			// Sprawdzenie czy jest ustanowione po³¹cznie WIFI
 			if((WiFi.status() == WL_CONNECTED) && (WiFi.localIP() != 0))
@@ -798,7 +803,7 @@ uint32_t WIFI_DoLoop(void)
 		#endif
 
 			DEF_WAITMS_VAR(hhh3);
-			BEGIN_WAITMS(hhh3, 2000)
+			BEGIN_WAITMS(hhh3, 5000)
 			{
 			#ifdef ESP32
 				if (PING_8888_IS)
@@ -1146,6 +1151,7 @@ bool WIFI_DoMessage(TMessageBoard* Am)
 		}
 		END_DIALOG()
 
+#ifdef XB_OTA
 		BEGIN_DIALOG(8, "Edit OTA PASSWORD", "Please input WIFI OTA PASSWORD: ", tivString, 16, &CFG_WIFI_PSWOTA)
 		{
 		}
@@ -1155,7 +1161,7 @@ bool WIFI_DoMessage(TMessageBoard* Am)
 		{
 		}
 		END_DIALOG()
-
+#endif
 		BEGIN_DIALOG_MINMAX(10, "Edit channel AP", "Please input channel AP: ", tivUInt8, 2, &CFG_WIFI_ChannelAp, 1, 12)
 		{
 		}
