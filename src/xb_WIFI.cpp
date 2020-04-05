@@ -471,7 +471,8 @@ void WIFI_OTA_Init(void)
 
 		board.Log('.');
 		ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-			board.Blink_RX(1);
+			board.Blink_RX();
+			board.Blink_TX();
 			board.Blink_Life();
 			board.Log('.');
 			});
