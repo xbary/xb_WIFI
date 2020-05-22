@@ -2,38 +2,26 @@
 #define _XB_WIFI_H
 
 #include <xb_board.h>
-#ifdef XB_PING
-#include <xb_PING.h>
-#endif
 #include <WiFiClient.h>
 
 typedef enum { wasDisconnect, wasConnect } TWiFiAPStatus;
-typedef enum { wsDisconnect, wsConnect } TWiFiStatus;
-typedef enum { isDisconnect, isConnect } TInternetStatus;
+typedef enum { wssDisconnect, wssConnect } TWiFiSTAStatus;
+typedef enum { nsDisconnect, nsConnect } TNETStatus;
 
 void TCPClientDestroy(WiFiClient **Awificlient);
-void WIFI_DoAllTaskWifiDisconnect(void);
-void WIFI_DoAllTaskInternetDisconnect(void);
-void WIFI_DoAllTaskInternetConnect(void);
-void WIFI_DoAllTaskWiFiConnect(void);
-void WIFI_SetConnectWiFi(void);
-void WIFI_SetConnectInternet(void);
-void WIFI_SetDisconnectWiFi(void);
-void WIFI_SetDisconnectInternet(void);
-bool WIFI_CheckDisconnectWiFi(void);
 
+extern void WIFI_RESET(void);
 
-extern void WIFI_HardDisconnect(void);
-extern TTaskDef XB_WIFI_DefTask;
-extern TWiFiStatus WiFiStatus;
-extern TInternetStatus WIFI_InternetStatus;
+extern TWiFiSTAStatus WiFiSTAStatus;
 extern TWiFiAPStatus WiFiAPStatus;
+extern void NET_Connect();
+extern void NET_Disconnect();
+extern TNETStatus NETStatus;
+
 extern uint8_t WIFI_mac[6];
 extern IPAddress CFG_WIFI_StaticIP_IP;
+extern IPAddress CFG_WIFI_MASK_IP;
+extern IPAddress CFG_WIFI_GATEWAY_IP;
 
-#ifndef XB_PING
-extern bool PING_GATEWAY_IS;
-extern bool PING_8888_IS;
-#endif
-
+extern TTaskDef XB_WIFI_DefTask;
 #endif

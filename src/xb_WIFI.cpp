@@ -2,7 +2,6 @@
 #include <xb_WIFI.h>
 
 #ifdef ESP32
-#include <ESPmDNS.h>
 #include <WiFi.h>
 
 extern "C" {
@@ -26,11 +25,8 @@ extern "C" {
 
 #endif
 
-#ifdef XB_PING
-#include <xb_PING.h>
-#endif
-
 #ifdef XB_OTA
+#include <ESPmDNS.h>
 #include <ArduinoOTA.h>
 #endif
 
@@ -45,17 +41,40 @@ extern "C" {
 };
 #endif
 
-typedef enum { wfDoFindtWiFi, wfDoWaitFindtWiFi, wfHandle, wfWaitConnectWiFi, wfDoConnectWiFi, wfCheckInternetAvaliable , wfWaitForPingGateway } TWiFiFunction;
-TWiFiFunction WiFiFunction = wfHandle;
+typedef enum { 
+	wfIDLE, 
+	wfResetRadio,
+	wfHandleOnlyAP,
+	wfStartFindWiFiAP,
+	wfFindingWiFiAP,
+	wfEndFindWiFiAP,
+	wfConnectWiFiAP,
+	wfWaitConnectWiFiAP,
+	wfHandleSta
+} TWiFiFunction;
+TWiFiFunction WiFiFunction = wfIDLE;
 
-TWiFiStatus WiFiStatus;
-TInternetStatus WIFI_InternetStatus;
+TWiFiSTAStatus WiFiSTAStatus;
 TWiFiAPStatus WiFiAPStatus;
+TNETStatus NETStatus;
 
-#ifndef XB_PING
-bool  PING_GATEWAY_IS = true;
-bool  PING_8888_IS = true;
-#endif
+void NET_Connect()
+{
+	if (NETStatus == nsConnect) return;
+	NETStatus=nsConnect;
+	TMessageBoard mb; xb_memoryfill(&mb, sizeof(TMessageBoard), 0);
+	mb.IDMessage = IM_NET_CONNECT;
+	board.DoMessageOnAllTask(&mb, true, doFORWARD);
+}
+
+void NET_Disconnect()
+{
+	if (NETStatus == nsDisconnect) return;
+	NETStatus = nsDisconnect;
+	TMessageBoard mb; xb_memoryfill(&mb, sizeof(TMessageBoard), 0);
+	mb.IDMessage = IM_NET_DISCONNECT;
+	board.DoMessageOnAllTask(&mb, true, doBACKWARD);
+}
 
 
 uint8_t WIFI_mac[6];
@@ -79,6 +98,22 @@ TGADGETInputDialog* WIFI_inputdialoghandle9_portota;
 TGADGETInputDialog* WIFI_inputdialoghandle10_channelap;
 #endif
 
+String WIFI_GetString_WiFiFunction(TWiFiFunction Awf)
+{
+	switch (Awf)
+	{
+		GET_ENUMSTRING(wfIDLE, 2);
+		GET_ENUMSTRING(wfResetRadio, 2);
+		GET_ENUMSTRING(wfConnectWiFiAP, 2);
+		GET_ENUMSTRING(wfEndFindWiFiAP, 2);
+		GET_ENUMSTRING(wfFindingWiFiAP, 2);
+		GET_ENUMSTRING(wfHandleOnlyAP, 2);
+		GET_ENUMSTRING(wfHandleSta, 2);
+		GET_ENUMSTRING(wfStartFindWiFiAP, 2);
+		GET_ENUMSTRING(wfWaitConnectWiFiAP, 2);
+	}
+}
+
 // Konfiguracja -----------------------------------------------------------------------------------------------------
 #pragma region KONFIGURACJA
 
@@ -90,6 +125,9 @@ bool CFG_WIFI_UseStation = false;
 #endif
 bool CFG_WIFI_UseAp = true;
 bool CFG_WIFI_HideAp = false;
+uint32_t CFG_WIFI_IntervalTickStartFindWifiAp = 5000;
+
+
 uint8_t CFG_WIFI_ChannelAp=11;
 bool CFG_WIFI_DEBUG = false;
 #ifdef XB_OTA
@@ -156,6 +194,8 @@ bool WIFI_LoadConfig()
 	{
 		CFG_WIFI_DEBUG = board.PREFERENCES_GetBool("DEBUG", CFG_WIFI_DEBUG);
 		
+		CFG_WIFI_IntervalTickStartFindWifiAp = board.PREFERENCES_GetUINT32("ITSFWA", CFG_WIFI_IntervalTickStartFindWifiAp);
+
 		CFG_WIFI_UseStation = board.PREFERENCES_GetBool("UseStation", CFG_WIFI_UseStation); 
 		CFG_WIFI_UseAp = board.PREFERENCES_GetBool("UseAp", CFG_WIFI_UseAp);
 		CFG_WIFI_ChannelAp = board.PREFERENCES_GetUINT8("ChannelAp", CFG_WIFI_ChannelAp);
@@ -203,6 +243,7 @@ bool WIFI_SaveConfig()
 #ifdef XB_PREFERENCES
 	if (board.PREFERENCES_BeginSection("WIFI"))
 	{
+		board.PREFERENCES_PutUINT32("ITSFWA", CFG_WIFI_IntervalTickStartFindWifiAp);
 		board.PREFERENCES_PutBool("UseStation", CFG_WIFI_UseStation); 
 		board.PREFERENCES_PutBool("UseAp", CFG_WIFI_UseAp);
 		board.PREFERENCES_PutUINT8("ChannelAp", CFG_WIFI_ChannelAp);
@@ -292,75 +333,19 @@ void TCPClientDestroy(WiFiClient **Awificlient)
 
 #pragma region FUNKCJE_STEROWANIA
 
-void WIFI_DoAllTaskWifiDisconnect(void)
-{
-	TMessageBoard mb; xb_memoryfill(&mb, sizeof(TMessageBoard), 0);
-	mb.IDMessage = IM_WIFI_DISCONNECT;
-
-	board.DoMessageOnAllTask(&mb, true, doBACKWARD); 
-}
-
-void WIFI_DoAllTaskInternetDisconnect(void)
-{
-	TMessageBoard mb; xb_memoryfill(&mb, sizeof(TMessageBoard), 0);
-	mb.IDMessage = IM_INTERNET_DISCONNECT;
-
-	board.DoMessageOnAllTask(&mb,true,doBACKWARD); 
-}
-
-void WIFI_DoAllTaskInternetConnect(void)
-{
-	TMessageBoard mb; xb_memoryfill(&mb, sizeof(TMessageBoard), 0);
-	mb.IDMessage = IM_INTERNET_CONNECT;
-
-	board.DoMessageOnAllTask(&mb, true, doFORWARD); 
-}
-
-void WIFI_DoAllTaskWiFiConnect(void)
-{
-	TMessageBoard mb; xb_memoryfill(&mb, sizeof(TMessageBoard), 0);
-	mb.IDMessage = IM_WIFI_CONNECT;
-
-	board.DoMessageOnAllTask(&mb, true, doFORWARD); 
-}
-
-void WIFI_SetConnectWiFi(void)
-{
-	WiFiStatus = wsConnect;
-	WIFI_DoAllTaskWiFiConnect();
-}
-
-void WIFI_SetConnectInternet(void)
-{
-	WIFI_InternetStatus = isConnect;
-	WIFI_DoAllTaskInternetConnect();
-}
-
-void WIFI_SetDisconnectWiFi(void)
-{
-	WiFiStatus = wsDisconnect;
-	WIFI_DoAllTaskWifiDisconnect();
-}
-
-void WIFI_SetDisconnectInternet(void)
-{
-	WIFI_InternetStatus = isDisconnect;
-	WIFI_DoAllTaskInternetDisconnect();
-}
-
 #ifdef XB_OTA
 void WIFI_OTA_Init(void);
 #endif
 
-void WIFI_HardDisconnect(void)
+
+void WIFI_RESET(void)
 {
+	NET_Disconnect();
+
 	int i = 0;
-	WIFI_SetDisconnectInternet();
-	WIFI_SetDisconnectWiFi();
 	WiFi.scanDelete();
-
 	delay(100);
-
+	
 	if (WiFi.status() == WL_CONNECTED)
 	{
 		board.Log("Disconnecting and reseting WIFI.", true, true);
@@ -373,37 +358,49 @@ void WIFI_HardDisconnect(void)
 		WiFi.disconnect();
 		board.Log('.');	delay(10);
 	}
-
+	
 	board.Log('.'); delay(10);
 	WiFi.persistent(false);
 	
 	WiFi.setAutoConnect(false);
 	WiFi.setAutoReconnect(false);
 	board.Log('.');	delay(10);
-	//WiFi.enableAP(false);
 	
 	if (CFG_WIFI_UseAp)
 	{
-		
 		WiFi.softAPsetHostname(board.DeviceName.c_str());
 		WiFi.softAP(board.DeviceName.c_str(), CFG_WIFI_AP_PSW.c_str(), CFG_WIFI_ChannelAp,(CFG_WIFI_HideAp?1:0));
-		board.Log('.');	delay(100);
 		WiFi.enableAP(true);
+		board.Log('.');	delay(500);
+		WiFi.softAPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0));
+		board.Log('.');	delay(100);
+		WiFiAPStatus = wasConnect;
+	}
+	else
+	{
+		WiFiAPStatus = wasDisconnect;
+		WiFi.enableAP(false);
 		board.Log('.');	delay(500);
 	}
 	
-	board.Log('.');
-	delay(100);
-	WiFi.enableSTA(true);
-	board.Log('.');
-	delay(100);
-	WiFi.config(IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0));
-	board.Log('.');
-	delay(100);
-	WiFi.begin("", "", 0, NULL, false);
 
-	WiFiFunction = wfHandle;
-
+	WiFiSTAStatus = wssDisconnect;
+	if (CFG_WIFI_UseStation)
+	{
+		board.Log('.');
+		delay(100);
+		WiFi.enableSTA(true);
+		board.Log('.');
+		delay(100);
+		WiFi.config(IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0));
+		board.Log('.');
+		delay(100);
+		WiFi.begin("", "", 0, NULL, false);
+	}
+	else
+	{
+		WiFi.enableSTA(false);
+	}
     board.Log("OK");
 
 	if (CFG_WIFI_UseAp)
@@ -414,7 +411,7 @@ void WIFI_HardDisconnect(void)
 	}
 
 }
-
+/*
 bool WIFI_CheckDisconnectWiFi(void)
 {
 	if ((WiFi.status() != WL_CONNECTED))
@@ -433,7 +430,7 @@ bool WIFI_CheckDisconnectWiFi(void)
 		return false;
 	}
 }
-
+*/
 #ifdef XB_OTA
 void WIFI_OTA_Init(void)
 {
@@ -504,13 +501,12 @@ void WIFI_OTA_Init(void)
 
 void WIFI_Setup(void)
 {
+	board.Log("Init.", true, true);
 	board.LoadConfiguration(&XB_WIFI_DefTask);
 
-	board.Log("Init.", true, true);
-
-	WiFiStatus = wsDisconnect;
-	WIFI_InternetStatus = isDisconnect;
-	WiFiAPStatus = wasConnect;
+	WiFiSTAStatus = wssDisconnect;
+	WiFiAPStatus = wasDisconnect;
+	NETStatus = nsDisconnect;
 
 	#ifdef ESP8266 
 	wifi_set_sleep_type(NONE_SLEEP_T);
@@ -519,10 +515,8 @@ void WIFI_Setup(void)
 	WiFi.macAddress(WIFI_mac);
 
 	board.Log('.');
-	WiFiFunction = wfHandle;
+	WiFiFunction = wfResetRadio;
 	board.Log(".OK");
-	
-	WIFI_HardDisconnect();
 }
 
 void WIFI_GUI_Repaint()
@@ -533,10 +527,283 @@ void WIFI_GUI_Repaint()
 	
 }
 
+void kropka()
+{
+	DEF_WAITMS_VAR(krop);
+	BEGIN_WAITMS(krop, 500);
+	board.Log('.');
+	END_WAITMS(krop);
+}
+
 uint32_t WIFI_DoLoop(void)
 {
+	static uint32_t LastTickStartFindWiFiAP;
+
 	switch (WiFiFunction)
 	{
+	case wfIDLE:
+	{
+		if ((CFG_WIFI_UseAp == true) && (CFG_WIFI_UseStation == false))
+		{
+
+			if (WiFiAPStatus == wasConnect)
+			{
+				WiFiFunction = wfHandleOnlyAP;
+			}
+			else
+			{
+				WiFiFunction = wfResetRadio;
+			}
+			WIFI_GUI_Repaint();
+			LastTickStartFindWiFiAP = 0;
+			return 0;
+		}
+		if (CFG_WIFI_UseStation == true)
+		{
+			WIFI_GUI_Repaint();
+			WiFiFunction = wfStartFindWiFiAP;
+			return 0;
+		}
+		return 0;
+	}
+	case wfResetRadio:
+	{
+		WIFI_GUI_Repaint();
+		WIFI_RESET();
+		LastTickStartFindWiFiAP = 0;
+		WiFiFunction = wfIDLE;
+		return 1000;
+	}
+	case wfHandleOnlyAP:
+	{
+		if ((CFG_WIFI_UseAp == false) || (CFG_WIFI_UseStation == true))
+		{
+			WiFiFunction = wfResetRadio;
+			LastTickStartFindWiFiAP = SysTickCount;
+		}
+		return 0;
+	}
+	case wfStartFindWiFiAP:
+	{
+		if (CFG_WIFI_UseStation == false)
+		{
+			WiFiFunction = wfResetRadio;
+			LastTickStartFindWiFiAP = SysTickCount;
+			return 0;
+		}
+
+		if (LastTickStartFindWiFiAP != 0)
+		{
+			if (SysTickCount - LastTickStartFindWiFiAP < CFG_WIFI_IntervalTickStartFindWifiAp) return 0;
+		}
+		LastTickStartFindWiFiAP = SysTickCount;
+
+
+		int16_t n = WiFi.scanNetworks(true);
+		if (n == 0)
+		{
+			board.Log(("No network found."), true, true);
+		}
+		else
+		{
+			board.Log(("Scan networks."), true, true);
+			WiFiFunction = wfFindingWiFiAP;
+		}
+
+		WIFI_GUI_Repaint();
+		return 0;
+	}
+	case wfFindingWiFiAP:
+	{
+		if (CFG_WIFI_UseStation == false)
+		{
+			WiFiFunction = wfResetRadio;
+			LastTickStartFindWiFiAP = SysTickCount;
+			return 0;
+		}
+
+		kropka();
+
+		int16_t n = WiFi.scanComplete();
+		if (n != WIFI_SCAN_RUNNING)
+		{
+			if (n == WIFI_SCAN_FAILED)
+			{
+				board.Log(("ERROR"));
+				board.Log(("Scan network failed."), true, true,tlError);
+				WiFiFunction = wfStartFindWiFiAP;
+			}
+			else if (n == 0)
+			{
+				board.Log(("OK"));
+				board.Log(("No network found."), true, true,tlWarn);
+				WiFiFunction = wfStartFindWiFiAP;
+			}
+			else
+			{
+				board.Log(("OK"));
+				WiFiFunction = wfEndFindWiFiAP;
+			}
+			LastTickStartFindWiFiAP = SysTickCount;
+			WIFI_GUI_Repaint();
+		}
+
+		return 0;
+	}
+	case wfEndFindWiFiAP:
+	{
+		if (CFG_WIFI_UseStation == false)
+		{
+			WiFiFunction = wfResetRadio;
+			LastTickStartFindWiFiAP = SysTickCount;
+			return 0;
+		}
+
+		WiFiFunction = wfStartFindWiFiAP;
+		LastTickStartFindWiFiAP = SysTickCount;
+
+		int16_t n = WiFi.scanComplete();
+		board.Log(("List WIFI:"), true, true);
+		for (int i = 0; i < n; ++i)
+		{
+			board.Log(String(i + 1).c_str(), true, true);
+			board.Log((": "));
+			board.Log(WiFi.SSID(i).c_str());
+			board.Log((" ("));
+			board.Log(String(WiFi.RSSI(i)).c_str());
+			board.Log(')');
+#ifdef ESP32
+			board.Log((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? ' ' : '*');
+#else
+			board.Log((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? ' ' : '*');
+#endif
+			if (WiFi.SSID(i) == String(CFG_WIFI_SSID))
+			{
+				board.Log((" <<< Connect"));
+				WiFiFunction = wfConnectWiFiAP;
+				WIFI_GUI_Repaint();
+			}
+
+		}
+		WiFi.scanDelete();
+
+		if (WiFiFunction == wfConnectWiFiAP)
+		{
+			board.Log(("Connecting to "), true, true);
+			board.Log(CFG_WIFI_SSID.c_str());
+			kropka();
+			return 1000;
+		}
+
+		return 0;
+	}
+	case wfConnectWiFiAP:
+	{
+		if (CFG_WIFI_UseStation == false)
+		{
+			WiFiFunction = wfResetRadio;
+			LastTickStartFindWiFiAP = SysTickCount;
+			return 0;
+		}
+
+		kropka();
+#ifdef ESP32
+		WiFi.setHostname(board.DeviceName.c_str());
+#else
+		WiFi.hostname(board.DeviceName.c_str());
+#endif
+		kropka();
+		{IPAddress ip; ip.fromString(CFG_WIFI_StaticIP); CFG_WIFI_StaticIP_IP = ip; }
+		{IPAddress ip; ip.fromString(CFG_WIFI_MASK); CFG_WIFI_MASK_IP = ip; }
+		{IPAddress ip; ip.fromString(CFG_WIFI_GATEWAY); CFG_WIFI_GATEWAY_IP = ip; }
+		{IPAddress ip; ip.fromString(CFG_WIFI_DNS1); CFG_WIFI_DNS1_IP = ip; }
+		{IPAddress ip; ip.fromString(CFG_WIFI_DNS2); CFG_WIFI_DNS2_IP = ip; }
+
+		WiFi.config(CFG_WIFI_StaticIP_IP, CFG_WIFI_GATEWAY_IP, CFG_WIFI_MASK_IP, CFG_WIFI_DNS1_IP, CFG_WIFI_DNS2_IP);
+
+		kropka();
+		WiFi.setSleep(false);
+		esp_wifi_set_ps(WIFI_PS_NONE);
+		kropka();
+		WiFi.begin(CFG_WIFI_SSID.c_str(), CFG_WIFI_PSW.c_str());
+
+		WiFiFunction = wfWaitConnectWiFiAP;
+		LastTickStartFindWiFiAP = SysTickCount;
+		WIFI_GUI_Repaint();
+
+		return 0;
+	}
+	case wfWaitConnectWiFiAP:
+	{
+		if (CFG_WIFI_UseStation == false)
+		{
+			WiFiFunction = wfResetRadio;
+			LastTickStartFindWiFiAP = SysTickCount;
+			return 0;
+		}
+
+		kropka();
+
+		if ((WiFi.status() == WL_CONNECTED))
+		{
+			board.Log(("OK"));
+			WiFiFunction = wfHandleSta;
+			NET_Connect();
+			WiFiSTAStatus = wssConnect;
+			WIFI_GUI_Repaint();
+		}
+		else
+		{
+			if (SysTickCount - LastTickStartFindWiFiAP  > 10000)
+			{
+				switch (WiFi.status())
+				{
+				case WL_CONNECTION_LOST: board.Log("(WL_CONNECTION_LOST)", true, true, tlError); break;
+				case WL_CONNECT_FAILED: board.Log("(WL_CONNECT_FAILED)", true, true, tlError); break;
+				case WL_DISCONNECTED: board.Log("(WL_DISCONNECTED)", true, true, tlError); break;
+				case WL_IDLE_STATUS: board.Log("(WL_IDLE_STATUS)", true, true, tlError); break;
+				case WL_NO_SHIELD: board.Log("(WL_NO_SHIELD)", true, true, tlError); break;
+				case WL_NO_SSID_AVAIL: board.Log("(WL_NO_SSID_AVAIL)", true, true, tlError); break;
+				case WL_SCAN_COMPLETED: board.Log("(WL_SCAN_COMPLETED)", true, true, tlError); break;
+				default: board.Log(String("(ERROR STATUS "+String((int)WiFi.status())+")").c_str(), true, true, tlError); break;
+				}
+				WiFiFunction = wfResetRadio;
+				LastTickStartFindWiFiAP = SysTickCount;
+				WIFI_GUI_Repaint();
+			}
+		}
+
+		return 0;
+	}
+	case wfHandleSta:
+	{
+		if (CFG_WIFI_UseStation == false)
+		{
+			WiFiFunction = wfResetRadio;
+			LastTickStartFindWiFiAP = SysTickCount;
+			return 0;
+		}
+
+		if ((WiFi.status() != WL_CONNECTED))
+		{
+			switch (WiFi.status())
+			{
+			case WL_CONNECTION_LOST: board.Log("Error (WL_CONNECTION_LOST)", true, true, tlError); break;
+			case WL_CONNECT_FAILED: board.Log("Error (WL_CONNECT_FAILED)", true, true, tlError); break;
+			case WL_DISCONNECTED: board.Log("Error (WL_DISCONNECTED)", true, true, tlError); break;
+			case WL_IDLE_STATUS: board.Log("Error (WL_IDLE_STATUS)", true, true, tlError); break;
+			case WL_NO_SHIELD: board.Log("Error (WL_NO_SHIELD)", true, true, tlError); break;
+			case WL_NO_SSID_AVAIL: board.Log("Error (WL_NO_SSID_AVAIL)", true, true, tlError); break;
+			case WL_SCAN_COMPLETED: board.Log("Error (WL_SCAN_COMPLETED)", true, true, tlError); break;
+			default: board.Log(String("Error (STATUS " + String((int)WiFi.status()) + ")").c_str(), true, true, tlError); break;
+			}
+			WiFiFunction = wfResetRadio;
+			LastTickStartFindWiFiAP = SysTickCount;
+			NET_Disconnect();
+		}
+		return 0;
+	}
+	/*
 	case wfHandle: // Normalna praca 
 		{
 			if (CFG_WIFI_UseStation == false) return 0;
@@ -665,7 +932,6 @@ uint32_t WIFI_DoLoop(void)
 	case wfDoWaitFindtWiFi:
 		{
 			DEF_WAITMS_VAR(krop);
-
 			BEGIN_WAITMS(krop, 500);
 			board.Log('.');
 			END_WAITMS(krop);
@@ -824,8 +1090,9 @@ uint32_t WIFI_DoLoop(void)
 			}
 			END_WAITMS(hhh3)
 			break;
-		}
-	default: WiFiFunction = wfHandle; break;
+		} */
+	default: WiFiFunction = wfIDLE; return 10000;
+
 	}
 	return 0;
 }
@@ -872,28 +1139,14 @@ bool WIFI_DoMessage(TMessageBoard* Am)
 	}
 	case IM_GET_TASKSTATUS_STRING:
 	{
-		switch (WiFiFunction)
+		GET_TASKSTATUS_ADDSTR(WIFI_GetString_WiFiFunction(WiFiFunction));
+
+		if (WiFiFunction == wfHandleSta)
 		{
-			GET_TASKSTATUS(wfCheckInternetAvaliable, 2);
-			GET_TASKSTATUS(wfDoConnectWiFi, 2);
-			GET_TASKSTATUS(wfDoFindtWiFi, 2);
-			GET_TASKSTATUS(wfDoWaitFindtWiFi, 2);
-			GET_TASKSTATUS(wfHandle, 2);
-			GET_TASKSTATUS(wfWaitConnectWiFi, 2);
-			GET_TASKSTATUS(wfWaitForPingGateway, 2);
+				GET_TASKSTATUS_ADDSTR(" " + WiFi.localIP().toString());
 		}
+
 		return true;
-	}
-	case IM_WIFI_CONNECT:
-	{
-		PING_GATEWAY_IS = true;
-		WIFI_GUI_Repaint();
-		break;
-	}
-	case IM_WIFI_DISCONNECT:
-	{
-		WIFI_GUI_Repaint();
-		break;
 	}
 	case IM_INTERNET_CONNECT:
 	{
@@ -927,7 +1180,7 @@ bool WIFI_DoMessage(TMessageBoard* Am)
 			{
 				CLICK_MENUITEM()
 				{
-					WIFI_HardDisconnect();
+					WiFiFunction = wfResetRadio;
 				}
 			}
 			END_MENUITEM()
@@ -945,11 +1198,6 @@ bool WIFI_DoMessage(TMessageBoard* Am)
 				CLICK_MENUITEM()
 				{
 					CFG_WIFI_UseStation = !CFG_WIFI_UseStation;
-
-					if (CFG_WIFI_UseStation == false)
-					{
-						WIFI_HardDisconnect();
-					}
 				}
 			}
 			END_MENUITEM()
@@ -1025,7 +1273,6 @@ bool WIFI_DoMessage(TMessageBoard* Am)
 				CLICK_MENUITEM()
 				{
 					CFG_WIFI_UseAp = !CFG_WIFI_UseAp;
-					WIFI_HardDisconnect();
 				}
 			}
 			END_MENUITEM()
@@ -1188,8 +1435,8 @@ bool WIFI_DoMessage(TMessageBoard* Am)
 				WH->PutStr(x, 2, ("STATUS:"));
 				WH->PutStr(x, 3, ("RSSI:"));
 
-				WH->PutStr(x, 5, ("WIFI:"));
-				WH->PutStr(x, 6, ("INTERNET:"));
+				WH->PutStr(x, 5, ("WIFI STA:"));
+				WH->PutStr(x, 6, ("WIFI AP:"));
 
 				WH->EndDraw();
 			}
@@ -1221,17 +1468,18 @@ bool WIFI_DoMessage(TMessageBoard* Am)
 				WH->PutChar(' ');
 				WH->PutChar(' ');
 
-				switch (WiFiStatus)
+				switch (WiFiSTAStatus)
 				{
-				case wsDisconnect: WH->PutStr(x + 5, 5, ("Disconnect")); break;
-				case wsConnect:WH->PutStr(x + 5, 5, ("Connect   ")); break;
+				case wssDisconnect: WH->PutStr(x + 9, 5, ("Disconnect")); break;
+				case wssConnect:WH->PutStr(x + 9, 5, ("Connect   ")); break;
 				}
 
-				switch (WIFI_InternetStatus)
+				switch (WiFiAPStatus)
 				{
-				case isDisconnect: WH->PutStr(x + 9, 6, ("Disconnect")); break;
-				case isConnect:WH->PutStr(x + 9, 6, ("Connect   ")); break;
+				case wasDisconnect: WH->PutStr(x + 8, 6, ("Disconnect")); break;
+				case wasConnect:WH->PutStr(x + 8, 6, ("Connect   ")); break;
 				}
+
 				WH->EndDraw();
 			}
 		}
