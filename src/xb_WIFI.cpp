@@ -3,7 +3,11 @@
 
 #ifdef ESP32
 #include <WiFi.h>
-
+#ifdef XB_OTA
+#include <ESPmDNS.h>
+#include <Update.h>
+#include <ArduinoOTA.h>
+#endif
 extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
@@ -23,11 +27,6 @@ extern "C" {
 
 } //extern "C"
 
-#endif
-
-#ifdef XB_OTA
-#include <ESPmDNS.h>
-#include <ArduinoOTA.h>
 #endif
 
 #ifdef ESP8266
@@ -58,6 +57,12 @@ TWiFiSTAStatus WiFiSTAStatus;
 TWiFiAPStatus WiFiAPStatus;
 TNETStatus NETStatus;
 
+#ifdef XB_OTA
+#ifdef NO_GLOBAL_ARDUINOOTA
+ArduinoOTAClass *ArduinoOTA;
+#endif
+#endif
+
 void NET_Connect()
 {
 	if (NETStatus == nsConnect) return;
@@ -75,7 +80,6 @@ void NET_Disconnect()
 	mb.IDMessage = IM_NET_DISCONNECT;
 	board.DoMessageOnAllTask(&mb, true, doBACKWARD);
 }
-
 
 uint8_t WIFI_mac[6];
 
@@ -340,6 +344,23 @@ void WIFI_OTA_Init(void);
 
 void WIFI_RESET(void)
 {
+#ifdef XB_OTA
+	if (CFG_WIFI_USEOTA)
+	{
+
+#ifdef NO_GLOBAL_ARDUINOOTA
+		if (ArduinoOTA != NULL)
+		{
+			ArduinoOTA->end();
+			delete(ArduinoOTA);
+			ArduinoOTA = NULL;
+		}
+#else
+		ArduinoOTA.end();
+#endif
+	}
+#endif
+
 	NET_Disconnect();
 
 	int i = 0;
@@ -403,53 +424,91 @@ void WIFI_RESET(void)
 	}
     board.Log("OK");
 
-	if (CFG_WIFI_UseAp)
+	if ((CFG_WIFI_UseAp) || (CFG_WIFI_UseStation))
 	{
 #ifdef XB_OTA
-		WIFI_OTA_Init();
+		if (CFG_WIFI_USEOTA)
+		{
+			WIFI_OTA_Init();
+		}
 #endif
 	}
 
 }
-/*
-bool WIFI_CheckDisconnectWiFi(void)
-{
-	if ((WiFi.status() != WL_CONNECTED))
-	{
-		if (WiFiStatus == wsConnect)
-		{
-			return true;
-		}
-		else
-		{
-			return false;
-		}
-	}
-	else
-	{
-		return false;
-	}
-}
-*/
+
 #ifdef XB_OTA
 void WIFI_OTA_Init(void)
 {
 	if (CFG_WIFI_USEOTA)
 	{
+#ifdef NO_GLOBAL_ARDUINOOTA
+		if (ArduinoOTA == NULL)
+		{
+			ArduinoOTA = new ArduinoOTAClass();
+		}
+#endif
+
 		board.Log("OTA Init", true, true);
 		board.Log('.');
+#ifdef NO_GLOBAL_ARDUINOOTA
+		ArduinoOTA->setPort(CFG_WIFI_PORTOTA);
+#else
 		ArduinoOTA.setPort(CFG_WIFI_PORTOTA);
+#endif
 		board.Log('.');
+#ifdef NO_GLOBAL_ARDUINOOTA
+		ArduinoOTA->setHostname(board.DeviceName.c_str());
+#else
 		ArduinoOTA.setHostname(board.DeviceName.c_str());
+#endif
 		board.Log('.');
 		if (CFG_WIFI_PSWOTA != "")
 		{
+#ifdef NO_GLOBAL_ARDUINOOTA
+			ArduinoOTA->setPassword(CFG_WIFI_PSWOTA.c_str());
+#else
 			ArduinoOTA.setPassword(CFG_WIFI_PSWOTA.c_str());
+#endif
 		}
 		board.Log('.');
 
 
 //#if !defined(_VMICRO_INTELLISENSE)
+#ifdef NO_GLOBAL_ARDUINOOTA
+		ArduinoOTA->onStart([](void) {
+			board.SendMessage_OTAUpdateStarted();
+			String type;
+			if (ArduinoOTA->getCommand() == U_FLASH)
+				type = "sketch";
+			else
+				type = "filesystem";
+
+			board.Log(String("\n\n[WIFI] Start updating " + type).c_str());
+			});
+
+		board.Log('.');
+		ArduinoOTA->onEnd([](void) {
+			board.Log("\n\rEnd");
+			});
+
+		board.Log('.');
+		ArduinoOTA->onProgress([](unsigned int progress, unsigned int total) {
+			board.Blink_RX();
+			board.Blink_TX();
+			board.Blink_Life();
+			board.Log('.');
+			});
+
+		board.Log('.');
+		ArduinoOTA->onError([](ota_error_t error) {
+			Serial.printf(("Error[%u]: "), error);
+			if (error == OTA_AUTH_ERROR) Serial.println(("Auth Failed"));
+			else if (error == OTA_BEGIN_ERROR) Serial.println(("Begin Failed"));
+			else if (error == OTA_CONNECT_ERROR) Serial.println(("Connect Failed"));
+			else if (error == OTA_RECEIVE_ERROR) Serial.println(("Receive Failed"));
+			else if (error == OTA_END_ERROR) Serial.println(("End Failed"));
+			});
+#else
 		ArduinoOTA.onStart([](void) {
 			board.SendMessage_OTAUpdateStarted();
 			String type;
@@ -483,15 +542,23 @@ void WIFI_OTA_Init(void)
 			else if (error == OTA_RECEIVE_ERROR) Serial.println(("Receive Failed"));
 			else if (error == OTA_END_ERROR) Serial.println(("End Failed"));
 	});
-//#endif
+#endif
 		board.Log('.');
+#ifdef NO_GLOBAL_ARDUINOOTA
+		ArduinoOTA->begin();
+#else
 		ArduinoOTA.begin();
+#endif
 		board.Log('.');
 		board.Log(("OK"));
 	}
 	else
 	{
+#ifdef NO_GLOBAL_ARDUINOOTA
+	if (ArduinoOTA!=NULL) ArduinoOTA->end();
+#else
 		ArduinoOTA.end();
+#endif
 	}
 }
 #endif
@@ -581,6 +648,16 @@ uint32_t WIFI_DoLoop(void)
 			WiFiFunction = wfResetRadio;
 			LastTickStartFindWiFiAP = SysTickCount;
 		}
+#ifdef XB_OTA
+		if (CFG_WIFI_USEOTA)
+		{
+#ifdef NO_GLOBAL_ARDUINOOTA
+			if(ArduinoOTA!=NULL) ArduinoOTA->handle();
+#else
+			ArduinoOTA.handle();
+#endif
+		}
+#endif
 		return 0;
 	}
 	case wfStartFindWiFiAP:
@@ -801,6 +878,16 @@ uint32_t WIFI_DoLoop(void)
 			LastTickStartFindWiFiAP = SysTickCount;
 			NET_Disconnect();
 		}
+#ifdef XB_OTA
+		if (CFG_WIFI_USEOTA)
+		{
+#ifdef NO_GLOBAL_ARDUINOOTA
+			if (ArduinoOTA != NULL) ArduinoOTA->handle();
+#else
+			ArduinoOTA.handle();
+#endif
+		}
+#endif
 		return 0;
 	}
 	/*
@@ -1307,7 +1394,7 @@ bool WIFI_DoMessage(TMessageBoard* Am)
 				CLICK_MENUITEM()
 				{
 					CFG_WIFI_USEOTA = !CFG_WIFI_USEOTA;
-					WIFI_HardDisconnect();
+					WIFI_RESET();
 				}
 			}
 			END_MENUITEM()
