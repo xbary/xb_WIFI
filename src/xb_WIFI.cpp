@@ -589,7 +589,7 @@ void WIFI_Setup(void)
 void WIFI_GUI_Repaint()
 {
 #ifdef XB_GUI
-	if (WIFI_winHandle0 != NULL) WIFI_winHandle0->RepaintCounter++;
+	if (WIFI_winHandle0 != NULL) WIFI_winHandle0->Repaint();
 #endif
 	
 }
