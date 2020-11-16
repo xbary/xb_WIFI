@@ -18,7 +18,7 @@ extern "C" {
 
 #include <esp_err.h>
 #include <esp_wifi.h>
-#include <esp_event_loop.h>
+#include <esp_event.h>
 #include "lwip/ip_addr.h"
 #include "lwip/opt.h"
 #include "lwip/err.h"
@@ -116,6 +116,7 @@ String WIFI_GetString_WiFiFunction(TWiFiFunction Awf)
 		GET_ENUMSTRING(wfStartFindWiFiAP, 2);
 		GET_ENUMSTRING(wfWaitConnectWiFiAP, 2);
 	}
+	return "No ident Enum";
 }
 
 // Konfiguracja -----------------------------------------------------------------------------------------------------
@@ -1204,7 +1205,7 @@ bool WIFI_DoMessage(TMessageBoard* Am)
 		}
 		END_DIALOG()
 
-		BEGIN_DIALOG_MINMAX(9, "Edit OTA PORT", "Please input SERVER OTA PORT: ", tivInt16, 5, &CFG_WIFI_PORTOTA,1,32767)
+		BEGIN_DIALOG_MINMAX(9, "Edit OTA PORT", "Please input SERVER OTA PORT: ", tivInt16, 5,&CFG_WIFI_PORTOTA,1,32767)
 		{
 		}
 		END_DIALOG()
