@@ -1,5 +1,6 @@
 #include <xb_board.h>
 #include <xb_WIFI.h>
+#include <xb_board_def.h>
 
 #ifdef ESP32
 #include <WiFi.h>
@@ -417,7 +418,7 @@ void WIFI_RESET(void)
 		WiFi.config(IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0));
 		board.Log('.');
 		delay(100);
-		WiFi.begin("", "", 0, NULL, false);
+		//WiFi.begin("", "", 0, NULL, false);
 	}
 	else
 	{
@@ -797,13 +798,18 @@ uint32_t WIFI_DoLoop(void)
 		{IPAddress ip; ip.fromString(CFG_WIFI_DNS1); CFG_WIFI_DNS1_IP = ip; }
 		{IPAddress ip; ip.fromString(CFG_WIFI_DNS2); CFG_WIFI_DNS2_IP = ip; }
 
+		delay(100); 
 		WiFi.config(CFG_WIFI_StaticIP_IP, CFG_WIFI_GATEWAY_IP, CFG_WIFI_MASK_IP, CFG_WIFI_DNS1_IP, CFG_WIFI_DNS2_IP);
 
 		kropka();
 		WiFi.setSleep(false);
+		delay(100);
 		esp_wifi_set_ps(WIFI_PS_NONE);
 		kropka();
+		delay(100);
+		//LOG("AP SSID:" + CFG_WIFI_SSID+" & Password:"+ CFG_WIFI_PSW);
 		WiFi.begin(CFG_WIFI_SSID.c_str(), CFG_WIFI_PSW.c_str());
+		delay(100);
 
 		WiFiFunction = wfWaitConnectWiFiAP;
 		LastTickStartFindWiFiAP = SysTickCount;
@@ -832,7 +838,7 @@ uint32_t WIFI_DoLoop(void)
 		}
 		else
 		{
-			if (SysTickCount - LastTickStartFindWiFiAP  > 10000)
+			if (SysTickCount - LastTickStartFindWiFiAP  > 20000)
 			{
 				switch (WiFi.status())
 				{
@@ -846,12 +852,14 @@ uint32_t WIFI_DoLoop(void)
 				default: board.Log(String("(ERROR STATUS "+String((int)WiFi.status())+")").c_str(), true, true, tlError); break;
 				}
 				WiFiFunction = wfResetRadio;
+				WiFi.mode(WIFI_OFF);
 				LastTickStartFindWiFiAP = SysTickCount;
 				WIFI_GUI_Repaint();
+				return 10000;
 			}
 		}
 
-		return 0;
+		return 1000;
 	}
 	case wfHandleSta:
 	{
